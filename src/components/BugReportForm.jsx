@@ -120,13 +120,6 @@ export default function BugReportForm({ bugReport, onChange }) {
         placeholder="e.g. Click the 'Checkout' button"
       />
 
-      <ListEditor
-        label="Suggested Labels"
-        items={bugReport.suggested_labels || []}
-        onChange={(v) => update("suggested_labels", v)}
-        placeholder="e.g. regression"
-      />
-
       <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
         <Button variant="secondary" type="button" icon={Lock} disabled title="Saving is disabled in this phase">
           Save Bug

@@ -8,7 +8,6 @@ import ImagePreview from "../components/ImagePreview.jsx";
 import LoadingOverlay from "../components/LoadingOverlay.jsx";
 import BugSummaryCard from "../components/BugSummaryCard.jsx";
 import ConfidenceCard from "../components/ConfidenceCard.jsx";
-import FollowUpQuestions from "../components/FollowUpQuestions.jsx";
 import BugReportForm from "../components/BugReportForm.jsx";
 import { aiBugService } from "../services/aiBugService";
 
@@ -98,7 +97,6 @@ export default function AIBugGenerator() {
             <>
               <BugSummaryCard bugReport={result.bug_report} />
               <ConfidenceCard score={result.bug_report.confidence_score} />
-              <FollowUpQuestions questions={result.bug_report.follow_up_questions} />
               <BugReportForm bugReport={result.bug_report} onChange={updateBugReport} />
             </>
           )}
