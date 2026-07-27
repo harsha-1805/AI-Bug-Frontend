@@ -13,7 +13,7 @@ function DashboardShell() {
       <Navbar />
       <main
         className={`ml-0 mt-16 min-h-[calc(100vh-4rem)] p-4 transition-all duration-300 ease-in-out sm:p-6
-          ${collapsed ? "md:ml-20" : "md:ml-64"} lg:ml-64`}
+          ${collapsed ? "md:ml-20" : "md:ml-64"}`}
       >
         <Outlet />
       </main>

@@ -37,10 +37,10 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
-  const { mobileOpen, closeMobile, collapsed } = useSidebar();
+  const { mobileOpen, closeMobile, collapsed, isMobile } = useSidebar();
 
   // Icon-only rail on tablet when collapsed; full labels everywhere else.
-  const showLabels = !collapsed;
+  const showLabels = isMobile || !collapsed;
 
   return (
     <>
@@ -55,9 +55,10 @@ export default function Sidebar() {
       )}
 
       <aside
+        id="app-sidebar"
         className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-white
           transition-all duration-300 ease-in-out
-          w-64 ${collapsed ? "md:w-20" : "md:w-64"} lg:w-64
+          w-64 ${collapsed ? "md:w-20" : "md:w-64"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         {/* Brand */}
