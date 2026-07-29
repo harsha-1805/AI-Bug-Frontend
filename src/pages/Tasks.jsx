@@ -166,7 +166,7 @@ export default function Tasks() {
         subtitle="A kanban view of everything your team is working on"
         actions={
           <Button icon={Plus} onClick={openCreate}>
-            create Task
+            New Task
           </Button>
         }
       />
@@ -266,7 +266,7 @@ export default function Tasks() {
               Cancel
             </Button>
             <Button loading={saving} onClick={handleSave}>
-              {editingTask ? "Save changes" : " create "}
+              {editingTask ? "Save changes" : "Create task"}
             </Button>
           </>
         }

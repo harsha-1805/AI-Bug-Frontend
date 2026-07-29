@@ -93,7 +93,7 @@ export default function UserManagement() {
       setInviteForm({ fullName: "", email: "", roleId: "" });
       loadUsers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to create user");
+      toast.error(err.response?.data?.detail || "Failed to invite user");
     } finally {
       setInviting(false);
     }
@@ -238,7 +238,7 @@ export default function UserManagement() {
         subtitle="Invite teammates, manage access, and assign global roles"
         actions={
           <Button icon={Plus} onClick={() => setInviteOpen(true)}>
-            create User
+            Invite User
           </Button>
         }
       />
@@ -295,7 +295,7 @@ export default function UserManagement() {
           setInviteOpen(false);
           setInvitedCreds(null);
         }}
-        title="create a user"
+        title="Invite a user"
         footer={
           invitedCreds ? (
             <Button
@@ -313,7 +313,7 @@ export default function UserManagement() {
                 Cancel
               </Button>
               <Button loading={inviting} onClick={handleInvite}>
-                create User
+                Send Invite
               </Button>
             </>
           )
