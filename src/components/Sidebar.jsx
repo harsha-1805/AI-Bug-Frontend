@@ -12,11 +12,13 @@ import {
   LogOut,
   Bot,
   Wand2,
+  Users,
   X,
 } from "lucide-react";
 import Avatar from "./Avatar.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../hooks/useSidebar";
+import { canManageUsers } from "../utils/rbac";
 
 // AI Bug Generator is flagged `highlight: true` so it visually stands out
 // as the main Phase 2 feature. Sprints/Releases are kept (existing
@@ -32,6 +34,10 @@ const NAV_ITEMS = [
   { to: "/releases", label: "Releases", icon: PackageCheck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/ai-assistant", label: "AI Assistant", icon: Sparkles },
+  // Phase 3/4: only rendered for roles with user-management access — see
+  // the `.filter()` below. Placed right before Settings so it reads as
+  // an admin/workspace-level item, not a personal one.
+  { to: "/admin/users", label: "User Management", icon: Users, adminOnly: true },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -41,6 +47,8 @@ export default function Sidebar() {
 
   // Icon-only rail on tablet when collapsed; full labels everywhere else.
   const showLabels = isMobile || !collapsed;
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || canManageUsers(user));
 
   return (
     <>
@@ -83,7 +91,7 @@ export default function Sidebar() {
 
         {/* Nav items */}
         <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, highlight }) => (
+          {visibleNavItems.map(({ to, label, icon: Icon, highlight }) => (
             <NavLink
               key={to}
               to={to}

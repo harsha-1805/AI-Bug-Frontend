@@ -2,6 +2,7 @@ import PageHeader from "../components/PageHeader.jsx";
 import Input from "../components/Input.jsx";
 import Button from "../components/Button.jsx";
 import Avatar from "../components/Avatar.jsx";
+import Badge from "../components/Badge.jsx";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Settings() {
@@ -17,6 +18,11 @@ export default function Settings() {
           <div>
             <p className="text-sm font-semibold text-slate-800">{user?.full_name || "—"}</p>
             <p className="text-xs text-slate-400">{user?.email || "—"}</p>
+            {user?.role?.name && (
+              <div className="mt-1.5">
+                <Badge tone="info">{user.role.name}</Badge>
+              </div>
+            )}
           </div>
         </div>
 

@@ -28,7 +28,7 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout title="Sign In" subtitle="Enter your email and password to sign in!">
+    <AuthLayout title="Welcome back" subtitle="Log in to your BugPilot AI workspace">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
           label="Email address"
@@ -51,7 +51,7 @@ export default function Login() {
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        Don&apos;t have an account?{" "}
+        Don't have an account?{" "}
         <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-700">
           Sign up
         </Link>

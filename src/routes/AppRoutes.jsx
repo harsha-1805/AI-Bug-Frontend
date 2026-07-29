@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import AdminRoute from "./AdminRoute.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
 import Login from "../pages/Login.jsx";
@@ -14,6 +15,7 @@ import Releases from "../pages/Releases.jsx";
 import Reports from "../pages/Reports.jsx";
 import AIAssistant from "../pages/AIAssistant.jsx";
 import Settings from "../pages/Settings.jsx";
+import UserManagement from "../pages/UserManagement.jsx";
 import NotFound from "../pages/NotFound.jsx";
 
 export default function AppRoutes() {
@@ -36,6 +38,11 @@ export default function AppRoutes() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/settings" element={<Settings />} />
+
+          {/* Admin-only (Phase 3/4 RBAC + User Management) */}
+          <Route element={<AdminRoute />}>
+            <Route path="/admin/users" element={<UserManagement />} />
+          </Route>
         </Route>
       </Route>
 
