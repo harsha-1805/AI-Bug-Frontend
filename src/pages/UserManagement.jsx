@@ -48,6 +48,7 @@ export default function UserManagement() {
   const [assigningRole, setAssigningRole] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [togglingUserId, setTogglingUserId] = useState(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -141,6 +142,9 @@ export default function UserManagement() {
   };
 
   const toggleActive = async (user) => {
+    if (user.id === currentUser?.id || togglingUserId) return;
+
+    setTogglingUserId(user.id);
     try {
       if (user.is_active) {
         await adminService.deactivateUser(user.id);
@@ -152,6 +156,8 @@ export default function UserManagement() {
       loadUsers();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Action failed");
+    } finally {
+      setTogglingUserId(null);
     }
   };
 
@@ -194,9 +200,7 @@ export default function UserManagement() {
       header: "Status",
       render: (row) => (
         <div className="flex items-center gap-1.5">
-          <Badge tone={row.is_active ? "success" : "low"}>
-            {row.is_active ? "Active" : "Deactivated"}
-          </Badge>
+          <Badge tone={row.is_active ? "success" : "low"}>{row.is_active ? "Active" : "Deactivated"}</Badge>
           {row.must_change_password && <Badge tone="medium">Invited</Badge>}
         </div>
       ),
@@ -208,25 +212,32 @@ export default function UserManagement() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
-        <Dropdown
-          label={<MoreVertical size={16} />}
-          items={[
-            { label: "Edit details", icon: Pencil, onClick: () => openEdit(row) },
-            { label: "Assign role", icon: ShieldCheck, onClick: () => openAssignRole(row) },
-            {
-              label: row.is_active ? "Deactivate" : "Activate",
-              icon: row.is_active ? Ban : CheckCircle2,
-              onClick: () => toggleActive(row),
-            },
-            {
-              label: "Delete user",
-              icon: Trash2,
-              onClick: () => setConfirmDelete(row),
-            },
-          ].filter((item) => row.id !== currentUser?.id || item.label !== "Deactivate")}
-        />
+        <div className="flex items-center justify-end gap-1">
+          
+          <Dropdown
+            label={<MoreVertical size={16} />}
+            showChevron={false}
+            ariaLabel={`Actions for ${row.full_name}`}
+            buttonClassName="border-0 p-2 hover:bg-slate-100"
+            items={[
+              { label: "Edit details", icon: Pencil, onClick: () => openEdit(row) },
+              { label: "Assign role", icon: ShieldCheck, onClick: () => openAssignRole(row) },
+              {
+                label: row.is_active ? "Deactivate" : "Activate",
+                icon: row.is_active ? Ban : CheckCircle2,
+                onClick: () => toggleActive(row),
+              },
+              {
+                label: "Delete user",
+                icon: Trash2,
+                onClick: () => setConfirmDelete(row),
+                danger: true,
+              },
+            ].filter((item) => row.id !== currentUser?.id || item.label !== "Deactivate")}
+          />
+        </div>
       ),
     },
   ];

@@ -20,8 +20,8 @@ export default function Table({ columns = [], data = [], emptyMessage = "No data
         return {
           field: column.key,
           headerName: column.header,
-          minWidth: column.minWidth ?? (isActionColumn ? 72 : 140),
-          width: isActionColumn ? 72 : undefined,
+          minWidth: column.minWidth ?? (isActionColumn ? 124 : 140),
+          width: isActionColumn ? 124 : undefined,
           flex: isActionColumn ? 0 : column.flex ?? 1,
           sortable: column.sortable ?? !isActionColumn,
           filterable: column.filterable ?? !isActionColumn,
