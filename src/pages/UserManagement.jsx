@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, ShieldCheck, Pencil, Ban, CheckCircle2, Trash2 } from "lucide-react";
+import { Plus, MoreVertical, ShieldCheck, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -10,7 +10,9 @@ import Avatar from "../components/Avatar.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
 import Dropdown from "../components/Dropdown.jsx";
+import Select from "../components/Select.jsx";
 import Loader from "../components/Loader.jsx";
+import MultiSelectCheckboxes from "../components/MultiSelectCheckboxes.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { adminService, rolesService } from "../services/adminService";
 
@@ -44,11 +46,11 @@ export default function UserManagement() {
   const [saving, setSaving] = useState(false);
 
   const [assignRoleUser, setAssignRoleUser] = useState(null);
-  const [assignRoleId, setAssignRoleId] = useState("");
+  const [assignRoleIds, setAssignRoleIds] = useState([]); // multi-select: array of role ids
   const [assigningRole, setAssigningRole] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [togglingUserId, setTogglingUserId] = useState(null);
+  const [togglingUserId, setTogglingUserId] = useState(null); // user.id currently being (de)activated
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -122,39 +124,53 @@ export default function UserManagement() {
 
   const openAssignRole = (user) => {
     setAssignRoleUser(user);
-    setAssignRoleId(user.role?.id ? String(user.role.id) : "");
+    // Seed the checkbox list from whichever roles the user already holds
+    // (falls back to the legacy single `role` field for older records).
+    const existingIds = user.roles?.length
+      ? user.roles.map((r) => r.id)
+      : user.role?.id
+        ? [user.role.id]
+        : [];
+    setAssignRoleIds(existingIds);
   };
 
   const handleAssignRole = async (e) => {
     e.preventDefault();
-    if (!assignRoleId) return;
+    if (assignRoleIds.length === 0) {
+      toast.error("Select at least one role");
+      return;
+    }
     setAssigningRole(true);
     try {
-      await adminService.assignRole(assignRoleUser.id, Number(assignRoleId));
-      toast.success("Role updated");
+      await adminService.assignRoles(assignRoleUser.id, assignRoleIds);
+      toast.success("Roles updated");
       setAssignRoleUser(null);
       loadUsers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to update role");
+      toast.error(err.response?.data?.detail || "Failed to update roles");
     } finally {
       setAssigningRole(false);
     }
   };
 
-  const toggleActive = async (user) => {
-    if (user.id === currentUser?.id || togglingUserId) return;
-
+  // Bound directly to the Status column's toggle switch: flipping it on
+  // calls the activate endpoint, flipping it off calls deactivate — same
+  // API the old "Activate/Deactivate" menu item used, just one click away.
+  const toggleActive = async (user, nextActive) => {
     setTogglingUserId(user.id);
+    // Optimistic UI update so the switch flips instantly; rolled back on error.
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_active: nextActive } : u)));
     try {
-      if (user.is_active) {
-        await adminService.deactivateUser(user.id);
-        toast.success(`${user.full_name} deactivated`);
-      } else {
+      if (nextActive) {
         await adminService.activateUser(user.id);
         toast.success(`${user.full_name} activated`);
+      } else {
+        await adminService.deactivateUser(user.id);
+        toast.success(`${user.full_name} deactivated`);
       }
-      loadUsers();
     } catch (err) {
+      // Roll back the optimistic flip.
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_active: user.is_active } : u)));
       toast.error(err.response?.data?.detail || "Action failed");
     } finally {
       setTogglingUserId(null);
@@ -190,17 +206,31 @@ export default function UserManagement() {
     },
     {
       key: "role",
-      header: "Role",
-      render: (row) => (
-        <Badge tone={ROLE_TONE[row.role?.name] || "neutral"}>{row.role?.name || "No role"}</Badge>
-      ),
+      header: "Roles",
+      render: (row) => {
+        const roleList = row.roles?.length ? row.roles : row.role ? [row.role] : [];
+        if (roleList.length === 0) {
+          return <Badge tone="neutral">No role</Badge>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {roleList.map((r) => (
+              <Badge key={r.id} tone={ROLE_TONE[r.name] || "neutral"}>
+                {r.name}
+              </Badge>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: "status",
       header: "Status",
       render: (row) => (
-        <div className="flex items-center gap-1.5">
-          <Badge tone={row.is_active ? "success" : "low"}>{row.is_active ? "Active" : "Deactivated"}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={row.is_active ? "success" : "low"}>
+            {row.is_active ? "Active" : "Deactivated"}
+          </Badge>
           {row.must_change_password && <Badge tone="medium">Invited</Badge>}
         </div>
       ),
@@ -214,30 +244,38 @@ export default function UserManagement() {
       key: "actions",
       header: "Actions",
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-pressed={Boolean(row.is_active)}
+            aria-label={`${row.is_active ? "Deactivate" : "Activate"} ${row.full_name}`}
+            title={row.is_active ? "Deactivate user" : "Activate user"}
+            disabled={togglingUserId === row.id || (row.id === currentUser?.id && row.is_active)}
+            onClick={() => toggleActive(row, !row.is_active)}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-50 ${
+              row.is_active ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-100"
+            }`}
+          >
+            {row.is_active ? <ToggleRight size={26} aria-hidden="true" /> : <ToggleLeft size={26} aria-hidden="true" />}
+          </button>
           <Dropdown
             label={<MoreVertical size={16} />}
-            showChevron={false}
             ariaLabel={`Actions for ${row.full_name}`}
+            showChevron={false}
             buttonClassName="border-0 p-2 hover:bg-slate-100"
             items={[
               { label: "Edit details", icon: Pencil, onClick: () => openEdit(row) },
-              { label: "Assign role", icon: ShieldCheck, onClick: () => openAssignRole(row) },
-              {
-                label: row.is_active ? "Deactivate" : "Activate",
-                icon: row.is_active ? Ban : CheckCircle2,
-                onClick: () => toggleActive(row),
-              },
+              { label: "Assign roles", icon: ShieldCheck, onClick: () => openAssignRole(row) },
               {
                 label: "Delete user",
                 icon: Trash2,
-                onClick: () => setConfirmDelete(row),
                 danger: true,
+                onClick: () => setConfirmDelete(row),
               },
             ].filter((item) => row.id !== currentUser?.id || item.label !== "Deactivate")}
           />
         </div>
+
       ),
     },
   ];
@@ -254,7 +292,7 @@ export default function UserManagement() {
         }
       />
 
-      <div className="mb-5 flex items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <SearchBar
           placeholder="Search by name or email..."
           value={search}
@@ -262,7 +300,7 @@ export default function UserManagement() {
             setPage(1);
             setSearch(e.target.value);
           }}
-          className="max-w-sm"
+          className="w-full max-w-sm sm:w-auto"
         />
         <span className="text-sm text-slate-400">{total} user{total === 1 ? "" : "s"} total</span>
       </div>
@@ -273,7 +311,7 @@ export default function UserManagement() {
         </div>
       ) : (
         <>
-          <Table columns={columns} data={users} emptyMessage="No users found." />
+          <Table columns={columns} data={users} emptyMessage="No users found." showPagination={false} />
 
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-end gap-2">
@@ -361,35 +399,30 @@ export default function UserManagement() {
             />
             <div>
               <label className="label">Role</label>
-              <select
-                className="input"
+              <Select
                 value={inviteForm.roleId}
-                onChange={(e) => setInviteForm((f) => ({ ...f, roleId: e.target.value }))}
-              >
-                <option value="">Default (Developer)</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setInviteForm((f) => ({ ...f, roleId: v }))}
+                placeholder="Default (Developer)"
+                ariaLabel="Role"
+                options={roles.map((r) => ({ value: r.id, label: r.name }))}
+              />
             </div>
           </form>
         )}
       </Modal>
 
-      {/* Edit modal */}
+      {/* Update modal */}
       <Modal
         open={Boolean(editUser)}
         onClose={() => setEditUser(null)}
-        title="Edit user"
+        title="Update user"
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditUser(null)}>
               Cancel
             </Button>
             <Button loading={saving} onClick={handleEditSave}>
-              Save changes
+              Save
             </Button>
           </>
         }
@@ -409,39 +442,37 @@ export default function UserManagement() {
         </form>
       </Modal>
 
-      {/* Assign role modal */}
+      {/* Assign roles modal — multi-select: a user can hold more than one
+          role at once (e.g. Lead + QA), so this is a checkbox list rather
+          than a single dropdown. */}
       <Modal
         open={Boolean(assignRoleUser)}
         onClose={() => setAssignRoleUser(null)}
-        title={`Assign role — ${assignRoleUser?.full_name || ""}`}
+        title={`Assign roles — ${assignRoleUser?.full_name || ""}`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setAssignRoleUser(null)}>
               Cancel
             </Button>
             <Button loading={assigningRole} onClick={handleAssignRole}>
-              Update role
+              Update roles
             </Button>
           </>
         }
       >
         <form className="space-y-4" onSubmit={handleAssignRole}>
           <div>
-            <label className="label">Role</label>
-            <select
-              className="input"
-              value={assignRoleId}
-              onChange={(e) => setAssignRoleId(e.target.value)}
-            >
-              <option value="" disabled>
-                Select a role
-              </option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <label className="label">Roles</label>
+            <p className="mb-2 text-xs text-slate-400">
+              Select one or more roles. A user can hold multiple roles at the same time.
+            </p>
+            <MultiSelectCheckboxes
+              options={roles.map((r) => ({ id: r.id, name: r.name, description: r.description }))}
+              selectedIds={assignRoleIds}
+              onChange={setAssignRoleIds}
+              disabled={assigningRole}
+              emptyMessage="No roles available"
+            />
           </div>
         </form>
       </Modal>

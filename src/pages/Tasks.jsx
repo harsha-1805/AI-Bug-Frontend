@@ -6,10 +6,12 @@ import Button from "../components/Button.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
 import Dropdown from "../components/Dropdown.jsx";
+import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
 import { taskService } from "../services/taskService";
 import { projectService } from "../services/projectService";
+import { sprintService } from "../services/sprintService";
 import { adminService } from "../services/adminService";
 
 // These three are the only statuses the backend model actually supports
@@ -24,6 +26,7 @@ const COLUMNS = [
 
 const emptyForm = {
   projectId: "",
+  sprintId: "",
   title: "",
   description: "",
   dueDate: "",
@@ -41,6 +44,7 @@ export default function Tasks() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null); // null = creating
   const [form, setForm] = useState(emptyForm);
+  const [formSprints, setFormSprints] = useState([]); // sprints for whichever project is selected in the form
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -73,6 +77,19 @@ export default function Tasks() {
       .catch(() => {});
   }, []);
 
+  // Whenever the form's selected project changes, refresh which sprints
+  // are offered — a task's sprint has to belong to the same project.
+  useEffect(() => {
+    if (!form.projectId) {
+      setFormSprints([]);
+      return;
+    }
+    sprintService
+      .listSprints({ projectId: Number(form.projectId) })
+      .then(setFormSprints)
+      .catch(() => setFormSprints([]));
+  }, [form.projectId]);
+
   const openCreate = () => {
     setEditingTask(null);
     setForm({ ...emptyForm, projectId: selectedProjectId || "" });
@@ -83,6 +100,7 @@ export default function Tasks() {
     setEditingTask(task);
     setForm({
       projectId: String(task.project_id),
+      sprintId: task.sprint_id ? String(task.sprint_id) : "",
       title: task.title,
       description: task.description || "",
       dueDate: task.due_date || "",
@@ -115,6 +133,7 @@ export default function Tasks() {
           status: form.status,
           dueDate: form.dueDate || undefined,
           assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
+          sprintId: form.sprintId ? Number(form.sprintId) : undefined,
         });
         toast.success("Task updated");
       } else {
@@ -125,6 +144,7 @@ export default function Tasks() {
           status: form.status,
           dueDate: form.dueDate || undefined,
           assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
+          sprintId: form.sprintId ? Number(form.sprintId) : undefined,
         });
         toast.success("Task created");
       }
@@ -173,18 +193,14 @@ export default function Tasks() {
 
       <div className="mb-5 flex items-center gap-3">
         <label className="text-sm text-slate-500">Project:</label>
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
           value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-        >
-          <option value="">All projects</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedProjectId}
+          placeholder="All projects"
+          ariaLabel="Filter by project"
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+        />
       </div>
 
       {loading ? (
@@ -235,6 +251,11 @@ export default function Tasks() {
                             {projectName(task.project_id) || `Project #${task.project_id}`}
                           </p>
                         )}
+                        {task.sprint && (
+                          <span className="mb-1.5 inline-block rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+                            {task.sprint.name}
+                          </span>
+                        )}
                         <div className="flex items-center justify-between">
                           {task.due_date ? (
                             <span className="flex items-center gap-1 text-xs text-slate-400">
@@ -260,6 +281,7 @@ export default function Tasks() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         title={editingTask ? "Edit task" : "New task"}
+        className="max-w-xl"
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
@@ -271,29 +293,35 @@ export default function Tasks() {
           </>
         }
       >
-        <form className="space-y-4" onSubmit={handleSave}>
-          <div>
+        <form className="space-y-4 sm:space-y-5" onSubmit={handleSave}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
             <label className="label">Project</label>
-            <select
-              className="input"
+            <Select
               value={form.projectId}
               disabled={Boolean(editingTask)}
-              onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
-            >
-              <option value="" disabled>
-                Select a project
-              </option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "" }))}
+              placeholder="Select a project"
+              ariaLabel="Project"
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            />
             {editingTask && (
               <p className="mt-1 text-xs text-slate-400">
                 A task&apos;s project can&apos;t be changed after it&apos;s created.
               </p>
             )}
+            </div>
+            <div>
+            <label className="label">Sprint (optional)</label>
+            <Select
+              value={form.sprintId}
+              disabled={!form.projectId}
+              onChange={(v) => setForm((f) => ({ ...f, sprintId: v }))}
+              placeholder={form.projectId ? "Backlog — not in a sprint" : "Select a project first"}
+              ariaLabel="Sprint"
+              options={formSprints.map((s) => ({ value: s.id, label: `${s.name} (${s.status})` }))}
+            />
+            </div>
           </div>
           <Input
             label="Title"
@@ -309,7 +337,7 @@ export default function Tasks() {
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Due date"
               type="date"
@@ -318,33 +346,23 @@ export default function Tasks() {
             />
             <div>
               <label className="label">Status</label>
-              <select
-                className="input"
+              <Select
                 value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-              >
-                {COLUMNS.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                ariaLabel="Status"
+                options={COLUMNS.map((c) => ({ value: c.key, label: c.label }))}
+              />
             </div>
           </div>
           <div>
             <label className="label">Assignee</label>
-            <select
-              className="input"
+            <Select
               value={form.assignedTo}
-              onChange={(e) => setForm((f) => ({ ...f, assignedTo: e.target.value }))}
-            >
-              <option value="">Unassigned</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.full_name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
+              placeholder="Unassigned"
+              ariaLabel="Assignee"
+              options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+            />
           </div>
         </form>
       </Modal>

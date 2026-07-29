@@ -9,6 +9,7 @@ import Badge from "../components/Badge.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
 import Dropdown from "../components/Dropdown.jsx";
+import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
 import { bugService } from "../services/bugService";
@@ -236,6 +237,21 @@ export default function Bugs() {
         ),
     },
     {
+      key: "task",
+      header: "Task",
+      render: (row) =>
+        row.task ? (
+          <div>
+            <p className="max-w-[160px] truncate text-sm text-slate-600">{row.task.title}</p>
+            {row.task.sprint && (
+              <Badge tone="info">{row.task.sprint.name}</Badge>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-300">No task</span>
+        ),
+    },
+    {
       key: "actions",
       header: "",
       render: (row) => (
@@ -274,30 +290,30 @@ export default function Bugs() {
           placeholder="Search bugs..."
           className="max-w-sm"
         />
-        <select className="input w-auto" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-          <option value="">All projects</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select className="input w-auto" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-          <option value="">All severities</option>
-          {SEVERITIES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        <Select
+          className="w-auto min-w-[9.5rem]"
+          value={projectFilter}
+          onChange={setProjectFilter}
+          placeholder="All projects"
+          ariaLabel="Filter by project"
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+        />
+        <Select
+          className="w-auto min-w-[9.5rem]"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          placeholder="All statuses"
+          ariaLabel="Filter by status"
+          options={STATUSES.map((s) => ({ value: s, label: s }))}
+        />
+        <Select
+          className="w-auto min-w-[9.5rem]"
+          value={severityFilter}
+          onChange={setSeverityFilter}
+          placeholder="All severities"
+          ariaLabel="Filter by severity"
+          options={SEVERITIES.map((s) => ({ value: s, label: s }))}
+        />
         <span className="text-sm text-slate-400">
           {bugs.length} of {total} bug{total === 1 ? "" : "s"}
         </span>
@@ -333,21 +349,14 @@ export default function Bugs() {
         <form className="space-y-4" onSubmit={handleSave}>
           <div>
             <label className="label">Project</label>
-            <select
-              className="input"
+            <Select
               value={form.projectId}
               disabled={Boolean(editingBug)}
-              onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value, sprintId: "" }))}
-            >
-              <option value="" disabled>
-                Select a project
-              </option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "" }))}
+              placeholder="Select a project"
+              ariaLabel="Project"
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            />
           </div>
           <Input
             label="Title"
@@ -366,78 +375,53 @@ export default function Bugs() {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="label">Severity</label>
-              <select
-                className="input"
+              <Select
                 value={form.severity}
-                onChange={(e) => setForm((f) => ({ ...f, severity: e.target.value }))}
-              >
-                {SEVERITIES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, severity: v }))}
+                ariaLabel="Severity"
+                options={SEVERITIES.map((s) => ({ value: s, label: s }))}
+              />
             </div>
             <div>
               <label className="label">Priority</label>
-              <select
-                className="input"
+              <Select
                 value={form.priority}
-                onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-              >
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, priority: v }))}
+                ariaLabel="Priority"
+                options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+              />
             </div>
             <div>
               <label className="label">Status</label>
-              <select
-                className="input"
+              <Select
                 value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                ariaLabel="Status"
+                options={STATUSES.map((s) => ({ value: s, label: s }))}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Sprint (optional)</label>
-              <select
-                className="input"
+              <Select
                 value={form.sprintId}
                 disabled={!form.projectId}
-                onChange={(e) => setForm((f) => ({ ...f, sprintId: e.target.value }))}
-              >
-                <option value="">No sprint</option>
-                {formSprints.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, sprintId: v }))}
+                placeholder="No sprint"
+                ariaLabel="Sprint"
+                options={formSprints.map((s) => ({ value: s.id, label: s.name }))}
+              />
             </div>
             <div>
               <label className="label">Assignee</label>
-              <select
-                className="input"
+              <Select
                 value={form.assignedTo}
-                onChange={(e) => setForm((f) => ({ ...f, assignedTo: e.target.value }))}
-              >
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.full_name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
+                placeholder="Unassigned"
+                ariaLabel="Assignee"
+                options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+              />
             </div>
           </div>
         </form>
@@ -458,20 +442,13 @@ export default function Bugs() {
       >
         <form onSubmit={handleAssign}>
           <label className="label">Assignee</label>
-          <select
-            className="input"
+          <Select
             value={assigneeChoice}
-            onChange={(e) => setAssigneeChoice(e.target.value)}
-          >
-            <option value="" disabled>
-              Select a teammate
-            </option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.full_name}
-              </option>
-            ))}
-          </select>
+            onChange={setAssigneeChoice}
+            placeholder="Select a teammate"
+            ariaLabel="Assignee"
+            options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+          />
         </form>
       </Modal>
 

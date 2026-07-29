@@ -8,6 +8,7 @@ import Table from "../components/Table.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
 import Dropdown from "../components/Dropdown.jsx";
+import Select from "../components/Select.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import Loader from "../components/Loader.jsx";
 import { projectService } from "../services/projectService";
@@ -226,18 +227,13 @@ export default function Projects() {
           </div>
           <div>
             <label className="label">Owner</label>
-            <select
-              className="input"
+            <Select
               value={form.ownerId}
-              onChange={(e) => setForm((f) => ({ ...f, ownerId: e.target.value }))}
-            >
-              <option value="">You (default)</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.full_name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, ownerId: v }))}
+              placeholder="You (default)"
+              ariaLabel="Owner"
+              options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+            />
           </div>
         </form>
       </Modal>

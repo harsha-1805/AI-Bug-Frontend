@@ -18,7 +18,7 @@ export const taskService = {
     return data;
   },
 
-  async createTask({ projectId, title, description, status = "To Do", dueDate, assignedTo }) {
+  async createTask({ projectId, title, description, status = "To Do", dueDate, assignedTo, sprintId }) {
     const { data } = await axiosInstance.post(TASKS_BASE, {
       project_id: projectId,
       title,
@@ -26,17 +26,19 @@ export const taskService = {
       status,
       due_date: dueDate || undefined,
       assigned_to: assignedTo ?? undefined,
+      sprint_id: sprintId ?? undefined,
     });
     return data;
   },
 
-  async updateTask(taskId, { title, description, status, dueDate, assignedTo }) {
+  async updateTask(taskId, { title, description, status, dueDate, assignedTo, sprintId }) {
     const { data } = await axiosInstance.patch(`${TASKS_BASE}/${taskId}`, {
       title: title || undefined,
       description: description || undefined,
       status: status || undefined,
       due_date: dueDate || undefined,
       assigned_to: assignedTo ?? undefined,
+      sprint_id: sprintId ?? undefined,
     });
     return data;
   },

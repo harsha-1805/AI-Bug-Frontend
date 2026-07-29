@@ -1,6 +1,8 @@
-import { Lock, Plus, X } from "lucide-react";
+import { CheckCircle2, Layers, Plus, Save, X } from "lucide-react";
 import Input from "./Input.jsx";
 import Button from "./Button.jsx";
+import Badge from "./Badge.jsx";
+import Select from "./Select.jsx";
 
 const SEVERITY_OPTIONS = ["Critical", "High", "Medium", "Low"];
 const PRIORITY_OPTIONS = ["P0", "P1", "P2", "P3"];
@@ -58,15 +60,31 @@ function ListEditor({ label, items, onChange, placeholder }) {
 }
 
 /**
- * Fully editable rendering of the generated BugReportAI. All edits are
- * local component state managed by the parent page — no autosave, no
- * persistence. The Save button is intentionally disabled: Phase 2 does
- * not write generated bugs to the database.
+ * Fully editable rendering of the generated BugReportAI, plus a
+ * "save to the database" section: pick a project (required) and,
+ * optionally, a task to assign the bug to. If the chosen task belongs to
+ * a sprint, that sprint is shown and automatically carried over onto the
+ * saved bug's `sprint_id` too.
  */
-export default function BugReportForm({ bugReport, onChange }) {
+export default function BugReportForm({
+  bugReport,
+  onChange,
+  projects = [],
+  tasks = [],
+  selectedProjectId = "",
+  selectedTaskId = "",
+  onProjectChange,
+  onTaskChange,
+  onSave,
+  saving = false,
+  saved = false,
+}) {
   if (!bugReport) return null;
 
   const update = (field, value) => onChange({ ...bugReport, [field]: value });
+
+  const selectedTask = tasks.find((t) => String(t.id) === String(selectedTaskId));
+  const canSave = Boolean(selectedProjectId) && !saving;
 
   return (
     <div className="card space-y-5 p-5">
@@ -82,18 +100,20 @@ export default function BugReportForm({ bugReport, onChange }) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Severity">
-          <select className="input" value={bugReport.severity} onChange={(e) => update("severity", e.target.value)}>
-            {SEVERITY_OPTIONS.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
+          <Select
+            value={bugReport.severity}
+            onChange={(v) => update("severity", v)}
+            options={SEVERITY_OPTIONS.map((o) => ({ value: o, label: o }))}
+            ariaLabel="Severity"
+          />
         </Field>
         <Field label="Priority">
-          <select className="input" value={bugReport.priority} onChange={(e) => update("priority", e.target.value)}>
-            {PRIORITY_OPTIONS.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
+          <Select
+            value={bugReport.priority}
+            onChange={(v) => update("priority", v)}
+            options={PRIORITY_OPTIONS.map((o) => ({ value: o, label: o }))}
+            ariaLabel="Priority"
+          />
         </Field>
         <Input label="Environment" value={bugReport.environment || ""} onChange={(e) => update("environment", e.target.value)} />
         <Input label="Module" value={bugReport.module || ""} onChange={(e) => update("module", e.target.value)} />
@@ -120,10 +140,66 @@ export default function BugReportForm({ bugReport, onChange }) {
         placeholder="e.g. Click the 'Checkout' button"
       />
 
-      <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
-        <Button variant="secondary" type="button" icon={Lock} disabled title="Saving is disabled in this phase">
-          Save Bug
-        </Button>
+      <div className="space-y-4 border-t border-border pt-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Project">
+            <Select
+              value={selectedProjectId}
+              onChange={(v) => onProjectChange?.(v)}
+              placeholder="Select a project..."
+              ariaLabel="Project"
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            />
+          </Field>
+
+          <Field label="Assign to task (optional)">
+            <Select
+              value={selectedTaskId}
+              onChange={(v) => onTaskChange?.(v)}
+              disabled={!selectedProjectId}
+              ariaLabel="Assign to task"
+              placeholder={selectedProjectId ? "No task — save unassigned" : "Select a project first"}
+              options={tasks.map((t) => ({
+                value: t.id,
+                label: `${t.title}${t.sprint ? ` (Sprint: ${t.sprint.name})` : ""}`,
+              }))}
+            />
+          </Field>
+        </div>
+
+        {selectedTask?.sprint && (
+          <div className="flex items-center gap-2 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-700">
+            <Layers size={15} />
+            <span>
+              This task is in sprint <strong>{selectedTask.sprint.name}</strong>
+              {" — "}
+              <Badge tone="info">{selectedTask.sprint.status}</Badge>
+              {" "}The bug will inherit this sprint automatically.
+            </span>
+          </div>
+        )}
+        {selectedTask && !selectedTask.sprint && (
+          <p className="text-xs text-slate-400">This task isn&apos;t part of any sprint yet.</p>
+        )}
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {saved && (
+            <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+              <CheckCircle2 size={16} /> Saved
+            </span>
+          )}
+          <Button
+            variant="primary"
+            type="button"
+            icon={Save}
+            loading={saving}
+            disabled={!canSave}
+            title={!selectedProjectId ? "Select a project to save this bug" : undefined}
+            onClick={() => onSave?.()}
+          >
+            Save Bug
+          </Button>
+        </div>
       </div>
     </div>
   );

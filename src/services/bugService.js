@@ -37,6 +37,7 @@ export const bugService = {
   async createBug({
     projectId,
     sprintId,
+    taskId,
     assignedTo,
     title,
     severity = "Medium",
@@ -57,6 +58,7 @@ export const bugService = {
     const { data } = await axiosInstance.post(BUGS_BASE, {
       project_id: projectId,
       sprint_id: sprintId ?? undefined,
+      task_id: taskId ?? undefined,
       assigned_to: assignedTo ?? undefined,
       title,
       severity,
@@ -86,6 +88,7 @@ export const bugService = {
       priority: "priority",
       status: "status",
       sprintId: "sprint_id",
+      taskId: "task_id",
       assignedTo: "assigned_to",
       summary: "summary",
       description: "description",

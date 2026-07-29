@@ -3,10 +3,21 @@ import { DataGrid } from "@mui/x-data-grid";
 
 /**
  * Material UI Data Grid adapter for the app's existing table API.
- * Pages can continue supplying `{ key, header, render }` columns while gaining
- * built-in pagination, keyboard navigation, and sortable fields.
+ * Pages can continue supplying `{ key, header, render }` columns while
+ * gaining keyboard navigation and sortable fields.
+ *
+ * Pagination note: several pages (UserManagement, Bugs, ...) already do
+ * their own SERVER-side pagination — a `page`/`pageSize` + Previous/Next
+ * control that re-fetches a new slice from the API. DataGrid's built-in
+ * pagination is CLIENT-side (it just re-slices whatever `data` it was
+ * given). Turning both on at once double-paginates: DataGrid would chop
+ * the already-paginated 20 rows into pages of 10 underneath the page's
+ * own Previous/Next buttons, silently hiding half of what was fetched.
+ * So the grid's footer/pagination is disabled here — the host page stays
+ * the single source of truth for paging, exactly like the old plain
+ * `<table>` did.
  */
-export default function Table({ columns = [], data = [], emptyMessage = "No data available" }) {
+export default function Table({ columns = [], data = [], emptyMessage = "No data available", showPagination = true }) {
   const rows = useMemo(
     () => data.map((row, index) => (row.id === undefined || row.id === null ? { ...row, id: `row-${index}` } : row)),
     [data]
@@ -20,8 +31,8 @@ export default function Table({ columns = [], data = [], emptyMessage = "No data
         return {
           field: column.key,
           headerName: column.header,
-          minWidth: column.minWidth ?? (isActionColumn ? 124 : 140),
-          width: isActionColumn ? 124 : undefined,
+          minWidth: column.minWidth ?? (isActionColumn ? 96 : 140),
+          width: isActionColumn ? 96 : undefined,
           flex: isActionColumn ? 0 : column.flex ?? 1,
           sortable: column.sortable ?? !isActionColumn,
           filterable: column.filterable ?? !isActionColumn,
@@ -43,7 +54,8 @@ export default function Table({ columns = [], data = [], emptyMessage = "No data
         autoHeight
         rows={rows}
         columns={gridColumns}
-        pagination
+        pagination={showPagination}
+        hideFooter={!showPagination}
         pageSizeOptions={[5, 10, 25]}
         initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }}
         disableRowSelectionOnClick

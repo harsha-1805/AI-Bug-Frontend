@@ -8,6 +8,7 @@ import Badge from "../components/Badge.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
 import Dropdown from "../components/Dropdown.jsx";
+import Select from "../components/Select.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import Loader from "../components/Loader.jsx";
 import { sprintService } from "../services/sprintService";
@@ -173,20 +174,14 @@ export default function Sprints() {
 
       <div className="mb-5 flex items-center gap-3">
         <label className="text-sm text-slate-500">Project:</label>
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
           value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-        >
-          <option value="" disabled>
-            Select a project
-          </option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedProjectId}
+          placeholder="Select a project"
+          ariaLabel="Project"
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+        />
       </div>
 
       {!selectedProjectId ? (
@@ -252,15 +247,16 @@ export default function Sprints() {
           </div>
           <div>
             <label className="label">Status</label>
-            <select
-              className="input"
+            <Select
               value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-            >
-              <option value="Planned">Planned</option>
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+              ariaLabel="Status"
+              options={[
+                { value: "Planned", label: "Planned" },
+                { value: "Active", label: "Active" },
+                { value: "Completed", label: "Completed" },
+              ]}
+            />
           </div>
         </form>
       </Modal>

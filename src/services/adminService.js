@@ -45,6 +45,15 @@ export const adminService = {
     return data;
   },
 
+  // Multi-select version: replaces the user's full set of roles in one
+  // call. A user can hold more than one role at once (e.g. Lead + QA).
+  async assignRoles(userId, roleIds) {
+    const { data } = await axiosInstance.patch(`${ADMIN_BASE}/${userId}/roles`, {
+      role_ids: roleIds,
+    });
+    return data;
+  },
+
   async deleteUser(userId) {
     const { data } = await axiosInstance.delete(`${ADMIN_BASE}/${userId}`);
     return data;
