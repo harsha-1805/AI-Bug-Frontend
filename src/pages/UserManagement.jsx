@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, ShieldCheck, Pencil, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import {
+  Plus,
+  MoreVertical,
+  ShieldCheck,
+  Pencil,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  KeyRound,
+  Info,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -15,13 +27,29 @@ import Loader from "../components/Loader.jsx";
 import MultiSelectCheckboxes from "../components/MultiSelectCheckboxes.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { adminService, rolesService } from "../services/adminService";
+import { getErrorMessage } from "../utils/apiError.js";
+import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS } from "../utils/emailValidation.js";
 
+// Matches the 5 roles actually seeded by the backend
+// (app/services/role_service.py -> DEFAULT_ROLE_DESCRIPTIONS).
 const ROLE_TONE = {
-  Owner: "info",
-  "Project Manager": "success",
-  Developer: "neutral",
-  "QA Engineer": "medium",
-  Viewer: "low",
+  Admin: "info",
+  Lead: "success",
+  HR: "medium",
+  QA: "neutral",
+  Employee: "low",
+};
+
+// Plain-language "what can this role do" reference, shown in the Roles
+// legend panel on this page. Kept here (not fetched from the backend)
+// since it's just a friendlier restatement of role_service.ROLE_PERMISSIONS
+// for people who aren't going to read raw permission codes.
+const ROLE_ACCESS_SUMMARY = {
+  Admin: "Full access to every module — projects, sprints, tasks, subtasks, bugs, releases, reports, user management, and the audit log.",
+  Lead: "Manages projects, sprints, tasks, subtasks and bugs end-to-end for their team; can view (not manage) users; can view the audit log. Acts as the Project Manager role.",
+  HR: "Manages people: invite/edit/deactivate users, assign roles, reset passwords. Read-only on dashboard/reports; no access to projects, tasks, or bugs.",
+  QA: "Reports, triages and verifies bugs; runs the AI Bug Generator; can view/update tasks & subtasks and view sprints; can view the audit log.",
+  Employee: "Works day-to-day on tasks/subtasks and bugs assigned to them; can create bugs; read-only on projects, sprints and releases.",
 };
 
 export default function UserManagement() {
@@ -52,6 +80,12 @@ export default function UserManagement() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [togglingUserId, setTogglingUserId] = useState(null); // user.id currently being (de)activated
 
+  const [resetPasswordUser, setResetPasswordUser] = useState(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
+
+  const [showRolesLegend, setShowRolesLegend] = useState(false);
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -59,7 +93,7 @@ export default function UserManagement() {
       setUsers(data.items);
       setTotal(data.total);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to load users");
+      toast.error(getErrorMessage(err, "Failed to load users"));
     } finally {
       setLoading(false);
     }
@@ -84,6 +118,12 @@ export default function UserManagement() {
       toast.error("Full name and email are required");
       return;
     }
+    if (!isEmailDomainAllowed(inviteForm.email.trim())) {
+      toast.error(
+        `Please use a standard email domain (${ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(", ")}).`
+      );
+      return;
+    }
     setInviting(true);
     try {
       const data = await adminService.inviteUser({
@@ -96,7 +136,7 @@ export default function UserManagement() {
       setInviteForm({ fullName: "", email: "", roleId: "" });
       loadUsers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to invite user");
+      toast.error(getErrorMessage(err, "Failed to invite user"));
     } finally {
       setInviting(false);
     }
@@ -109,6 +149,12 @@ export default function UserManagement() {
 
   const handleEditSave = async (e) => {
     e.preventDefault();
+    if (editForm.email && !isEmailDomainAllowed(editForm.email.trim())) {
+      toast.error(
+        `Please use a standard email domain (${ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(", ")}).`
+      );
+      return;
+    }
     setSaving(true);
     try {
       await adminService.updateUser(editUser.id, editForm);
@@ -116,9 +162,29 @@ export default function UserManagement() {
       setEditUser(null);
       loadUsers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to update user");
+      toast.error(getErrorMessage(err, "Failed to update user"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (resetPasswordValue.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      await adminService.resetPassword(resetPasswordUser.id, resetPasswordValue);
+      toast.success(`Password reset for ${resetPasswordUser.full_name}`);
+      setResetPasswordUser(null);
+      setResetPasswordValue("");
+      loadUsers();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to reset password"));
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -147,7 +213,7 @@ export default function UserManagement() {
       setAssignRoleUser(null);
       loadUsers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to update roles");
+      toast.error(getErrorMessage(err, "Failed to update roles"));
     } finally {
       setAssigningRole(false);
     }
@@ -171,7 +237,7 @@ export default function UserManagement() {
     } catch (err) {
       // Roll back the optimistic flip.
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_active: user.is_active } : u)));
-      toast.error(err.response?.data?.detail || "Action failed");
+      toast.error(getErrorMessage(err, "Action failed"));
     } finally {
       setTogglingUserId(null);
     }
@@ -184,7 +250,7 @@ export default function UserManagement() {
       setConfirmDelete(null);
       loadUsers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to delete user");
+      toast.error(getErrorMessage(err, "Failed to delete user"));
     }
   };
 
@@ -266,6 +332,7 @@ export default function UserManagement() {
             items={[
               { label: "Edit details", icon: Pencil, onClick: () => openEdit(row) },
               { label: "Assign roles", icon: ShieldCheck, onClick: () => openAssignRole(row) },
+              { label: "Reset password", icon: KeyRound, onClick: () => setResetPasswordUser(row) },
               {
                 label: "Delete user",
                 icon: Trash2,
@@ -303,7 +370,27 @@ export default function UserManagement() {
           className="w-full max-w-sm sm:w-auto"
         />
         <span className="text-sm text-slate-400">{total} user{total === 1 ? "" : "s"} total</span>
+        <button
+          type="button"
+          onClick={() => setShowRolesLegend((v) => !v)}
+          className="ml-auto flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700"
+        >
+          <Info size={16} />
+          What can each role do?
+          {showRolesLegend ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
       </div>
+
+      {showRolesLegend && (
+        <div className="mb-5 grid gap-3 rounded-xl border border-border bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Object.entries(ROLE_ACCESS_SUMMARY).map(([role, summary]) => (
+            <div key={role} className="rounded-lg bg-white p-3 shadow-sm">
+              <Badge tone={ROLE_TONE[role] || "neutral"}>{role}</Badge>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">{summary}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="card flex items-center justify-center p-10">
@@ -395,8 +482,11 @@ export default function UserManagement() {
               type="email"
               value={inviteForm.email}
               onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="jane@company.com"
+              placeholder="jane@gmail.com"
             />
+            <p className="-mt-2 text-xs text-slate-400">
+              Accepted domains: {ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(", ")}
+            </p>
             <div>
               <label className="label">Role</label>
               <Select
@@ -474,6 +564,46 @@ export default function UserManagement() {
               emptyMessage="No roles available"
             />
           </div>
+        </form>
+      </Modal>
+
+      {/* Reset password (admin/HR) */}
+      <Modal
+        open={Boolean(resetPasswordUser)}
+        onClose={() => {
+          setResetPasswordUser(null);
+          setResetPasswordValue("");
+        }}
+        title={`Reset password — ${resetPasswordUser?.full_name || ""}`}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setResetPasswordUser(null);
+                setResetPasswordValue("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button loading={resettingPassword} onClick={handleResetPassword}>
+              Reset password
+            </Button>
+          </>
+        }
+      >
+        <form className="space-y-4" onSubmit={handleResetPassword}>
+          <p className="text-sm text-slate-600">
+            Set a new password for <strong>{resetPasswordUser?.email}</strong>. They&apos;ll be
+            asked to change it after logging in next.
+          </p>
+          <Input
+            label="New password"
+            type="password"
+            value={resetPasswordValue}
+            onChange={(e) => setResetPasswordValue(e.target.value)}
+            placeholder="At least 8 characters"
+          />
         </form>
       </Modal>
 

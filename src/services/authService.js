@@ -24,4 +24,22 @@ export const authService = {
     const { data } = await axiosInstance.get(`${AUTH_BASE}/me`);
     return data;
   },
+
+  // Settings -> Profile: self-service name/email edit.
+  async updateProfile({ fullName, email }) {
+    const { data } = await axiosInstance.patch(`${AUTH_BASE}/me`, {
+      full_name: fullName || undefined,
+      email: email || undefined,
+    });
+    return data;
+  },
+
+  // Settings -> Profile: self-service password change (requires current password).
+  async changePassword({ currentPassword, newPassword }) {
+    const { data } = await axiosInstance.patch(`${AUTH_BASE}/me/password`, {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return data;
+  },
 };

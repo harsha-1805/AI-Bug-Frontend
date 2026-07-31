@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, Calendar } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, Calendar, ListTree, X, Check } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
 import Modal from "../components/Modal.jsx";
@@ -9,10 +9,13 @@ import Dropdown from "../components/Dropdown.jsx";
 import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
+import Badge from "../components/Badge.jsx";
 import { taskService } from "../services/taskService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { adminService } from "../services/adminService";
+import { subtaskService } from "../services/subtaskService";
+import { getErrorMessage } from "../utils/apiError.js";
 
 // These three are the only statuses the backend model actually supports
 // (see Task.status in app/models.py) — keeping the columns in sync with
@@ -23,6 +26,12 @@ const COLUMNS = [
   { key: "In Progress", label: "In Progress" },
   { key: "Done", label: "Done" },
 ];
+
+// Today's date as YYYY-MM-DD, used as the HTML date input's `min` so the
+// browser itself blocks picking a past due date — the backend
+// (TaskCreate/TaskUpdate due_date validators) is still the real
+// enforcement, this is just faster UX feedback.
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const emptyForm = {
   projectId: "",
@@ -48,6 +57,18 @@ export default function Tasks() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  // Drag-and-drop: which task is currently being dragged, and which
+  // column is currently being hovered over (for a highlight affordance).
+  const [draggedTaskId, setDraggedTaskId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  // Subtasks modal (Project -> Sprint -> Task -> SubTask hierarchy)
+  const [subtaskTask, setSubtaskTask] = useState(null); // task the subtasks modal is open for
+  const [subtasks, setSubtasks] = useState([]);
+  const [subtasksLoading, setSubtasksLoading] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [addingSubtask, setAddingSubtask] = useState(false);
+
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
@@ -56,7 +77,7 @@ export default function Tasks() {
       });
       setTasks(data);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to load tasks");
+      toast.error(getErrorMessage(err, "Failed to load tasks"));
     } finally {
       setLoading(false);
     }
@@ -116,6 +137,13 @@ export default function Tasks() {
       toast.error("Every task needs to belong to a project — pick one");
       return;
     }
+    // Sprint is mandatory (Project -> Sprint -> Task -> SubTask). This
+    // mirrors the backend's TaskCreate.sprint_id now being a required
+    // field, not Optional — see app/schemas/project_schema.py.
+    if (!form.sprintId) {
+      toast.error("Every task needs a sprint — pick one before saving");
+      return;
+    }
     if (!form.title.trim()) {
       toast.error("Task title is required");
       return;
@@ -144,25 +172,29 @@ export default function Tasks() {
           status: form.status,
           dueDate: form.dueDate || undefined,
           assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
-          sprintId: form.sprintId ? Number(form.sprintId) : undefined,
+          sprintId: Number(form.sprintId),
         });
         toast.success("Task created");
       }
       setFormOpen(false);
       loadTasks();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save task");
+      toast.error(getErrorMessage(err, "Failed to save task"));
     } finally {
       setSaving(false);
     }
   };
 
   const changeStatus = async (task, status) => {
+    if (status === task.status) return;
+    const prevTasks = tasks;
+    // Optimistic update so drag-and-drop feels instant; rolled back on error.
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
     try {
       await taskService.updateTask(task.id, { status });
-      loadTasks();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to update status");
+      setTasks(prevTasks);
+      toast.error(getErrorMessage(err, "Failed to update status"));
     }
   };
 
@@ -173,17 +205,101 @@ export default function Tasks() {
       setConfirmDelete(null);
       loadTasks();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to delete task");
+      toast.error(getErrorMessage(err, "Failed to delete task"));
     }
   };
 
   const projectName = (id) => projects.find((p) => p.id === id)?.name;
 
+  // --- Drag and drop handlers ---------------------------------------------
+  const handleDragStart = (task) => (e) => {
+    setDraggedTaskId(task.id);
+    e.dataTransfer.effectAllowed = "move";
+    // Some browsers require data to be set for drag to work at all.
+    e.dataTransfer.setData("text/plain", String(task.id));
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleColumnDragOver = (columnKey) => (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverColumn(columnKey);
+  };
+
+  const handleColumnDrop = (columnKey) => (e) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    const task = tasks.find((t) => t.id === draggedTaskId);
+    setDraggedTaskId(null);
+    if (task && task.status !== columnKey) {
+      changeStatus(task, columnKey);
+    }
+  };
+
+  // --- Subtasks ------------------------------------------------------------
+  const openSubtasks = async (task) => {
+    setSubtaskTask(task);
+    setSubtasksLoading(true);
+    setNewSubtaskTitle("");
+    try {
+      const data = await subtaskService.listSubtasks({ taskId: task.id });
+      setSubtasks(data);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load subtasks"));
+    } finally {
+      setSubtasksLoading(false);
+    }
+  };
+
+  const handleAddSubtask = async (e) => {
+    e.preventDefault();
+    if (!newSubtaskTitle.trim()) return;
+    setAddingSubtask(true);
+    try {
+      const created = await subtaskService.createSubtask({
+        taskId: subtaskTask.id,
+        title: newSubtaskTitle.trim(),
+      });
+      setSubtasks((prev) => [created, ...prev]);
+      setNewSubtaskTitle("");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to add subtask"));
+    } finally {
+      setAddingSubtask(false);
+    }
+  };
+
+  const toggleSubtaskDone = async (subtask) => {
+    const nextStatus = subtask.status === "Done" ? "To Do" : "Done";
+    setSubtasks((prev) => prev.map((s) => (s.id === subtask.id ? { ...s, status: nextStatus } : s)));
+    try {
+      await subtaskService.updateSubtask(subtask.id, { status: nextStatus });
+    } catch (err) {
+      setSubtasks((prev) => prev.map((s) => (s.id === subtask.id ? { ...s, status: subtask.status } : s)));
+      toast.error(getErrorMessage(err, "Failed to update subtask"));
+    }
+  };
+
+  const deleteSubtask = async (subtask) => {
+    const prev = subtasks;
+    setSubtasks((cur) => cur.filter((s) => s.id !== subtask.id));
+    try {
+      await subtaskService.deleteSubtask(subtask.id);
+    } catch (err) {
+      setSubtasks(prev);
+      toast.error(getErrorMessage(err, "Failed to delete subtask"));
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="Tasks"
-        subtitle="A kanban view of everything your team is working on"
+        subtitle="A kanban view of everything your team is working on — drag a card to change its status"
         actions={
           <Button icon={Plus} onClick={openCreate}>
             New Task
@@ -211,8 +327,17 @@ export default function Tasks() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {COLUMNS.map((col) => {
             const colTasks = tasks.filter((t) => t.status === col.key);
+            const isDragOver = dragOverColumn === col.key;
             return (
-              <div key={col.key} className="card flex min-h-[320px] flex-col p-4">
+              <div
+                key={col.key}
+                onDragOver={handleColumnDragOver(col.key)}
+                onDragLeave={() => setDragOverColumn((c) => (c === col.key ? null : c))}
+                onDrop={handleColumnDrop(col.key)}
+                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${
+                  isDragOver ? "ring-2 ring-primary-400 bg-primary-50/40" : ""
+                }`}
+              >
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-700">{col.label}</h3>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
@@ -222,29 +347,47 @@ export default function Tasks() {
 
                 {colTasks.length === 0 ? (
                   <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border text-xs text-slate-400">
-                    No tasks here
+                    {isDragOver ? "Drop here" : "No tasks here"}
                   </div>
                 ) : (
                   <div className="flex flex-1 flex-col gap-2">
                     {colTasks.map((task) => (
-                      <div key={task.id} className="rounded-xl border border-border bg-white p-3">
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={handleDragStart(task)}
+                        onDragEnd={handleDragEnd}
+                        className={`cursor-grab rounded-xl border border-border bg-white p-3 active:cursor-grabbing ${
+                          draggedTaskId === task.id ? "opacity-40" : ""
+                        }`}
+                      >
                         <div className="mb-1.5 flex items-start justify-between gap-2">
                           <p className="text-sm font-medium text-slate-800">{task.title}</p>
-                          <Dropdown
-                            label={<MoreVertical size={14} />}
-                            items={[
-                              { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
-                              ...COLUMNS.filter((c) => c.key !== task.status).map((c) => ({
-                                label: `Move to ${c.label}`,
-                                onClick: () => changeStatus(task, c.key),
-                              })),
-                              {
-                                label: "Delete",
-                                icon: Trash2,
-                                onClick: () => setConfirmDelete(task),
-                              },
-                            ]}
-                          />
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button
+                              type="button"
+                              title="Subtasks"
+                              onClick={() => openSubtasks(task)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
+                            >
+                              <ListTree size={14} />
+                            </button>
+                            <Dropdown
+                              label={<MoreVertical size={14} />}
+                              items={[
+                                { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
+                                ...COLUMNS.filter((c) => c.key !== task.status).map((c) => ({
+                                  label: `Move to ${c.label}`,
+                                  onClick: () => changeStatus(task, c.key),
+                                })),
+                                {
+                                  label: "Delete",
+                                  icon: Trash2,
+                                  onClick: () => setConfirmDelete(task),
+                                },
+                              ]}
+                            />
+                          </div>
                         </div>
                         {!selectedProjectId && (
                           <p className="mb-1.5 text-xs text-primary-600">
@@ -265,7 +408,17 @@ export default function Tasks() {
                           ) : (
                             <span />
                           )}
-                          {task.assignee && <Avatar name={task.assignee.full_name} size={24} />}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openSubtasks(task)}
+                              className="text-xs text-slate-400 hover:text-primary-600"
+                            >
+                              <ListTree size={12} className="mr-0.5 inline" />
+                              Subtasks
+                            </button>
+                            {task.assignee && <Avatar name={task.assignee.full_name} size={24} />}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -312,15 +465,20 @@ export default function Tasks() {
             )}
             </div>
             <div>
-            <label className="label">Sprint (optional)</label>
+            <label className="label">
+              Sprint <span className="text-red-500">*</span>
+            </label>
             <Select
               value={form.sprintId}
               disabled={!form.projectId}
               onChange={(v) => setForm((f) => ({ ...f, sprintId: v }))}
-              placeholder={form.projectId ? "Backlog — not in a sprint" : "Select a project first"}
+              placeholder={form.projectId ? "Select a sprint" : "Select a project first"}
               ariaLabel="Sprint"
               options={formSprints.map((s) => ({ value: s.id, label: `${s.name} (${s.status})` }))}
             />
+            <p className="mt-1 text-xs text-slate-400">
+              Required — every task must belong to a sprint (Project → Sprint → Task).
+            </p>
             </div>
           </div>
           <Input
@@ -341,6 +499,7 @@ export default function Tasks() {
             <Input
               label="Due date"
               type="date"
+              min={todayStr()}
               value={form.dueDate}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
             />
@@ -365,6 +524,83 @@ export default function Tasks() {
             />
           </div>
         </form>
+      </Modal>
+
+      {/* Subtasks modal — Project -> Sprint -> Task -> SubTask */}
+      <Modal
+        open={Boolean(subtaskTask)}
+        onClose={() => setSubtaskTask(null)}
+        title={`Subtasks — ${subtaskTask?.title || ""}`}
+        footer={
+          <Button variant="secondary" onClick={() => setSubtaskTask(null)}>
+            Close
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <form className="flex gap-2" onSubmit={handleAddSubtask}>
+            <Input
+              value={newSubtaskTitle}
+              onChange={(e) => setNewSubtaskTitle(e.target.value)}
+              placeholder="Add a subtask..."
+              className="flex-1"
+            />
+            <Button type="submit" loading={addingSubtask} icon={Plus}>
+              Add
+            </Button>
+          </form>
+
+          {subtasksLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader label="Loading subtasks..." />
+            </div>
+          ) : subtasks.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-400">No subtasks yet.</p>
+          ) : (
+            <ul className="max-h-80 space-y-2 overflow-y-auto">
+              {subtasks.map((st) => (
+                <li
+                  key={st.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSubtaskDone(st)}
+                    className="flex flex-1 items-center gap-2 text-left"
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        st.status === "Done"
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {st.status === "Done" && <Check size={12} />}
+                    </span>
+                    <span
+                      className={`text-sm ${
+                        st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
+                      }`}
+                    >
+                      {st.title}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Badge tone={st.status === "Done" ? "success" : "neutral"}>{st.status}</Badge>
+                    <button
+                      type="button"
+                      onClick={() => deleteSubtask(st)}
+                      className="rounded p-1 text-slate-400 hover:text-red-600"
+                      title="Delete subtask"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Modal>
 
       <Modal

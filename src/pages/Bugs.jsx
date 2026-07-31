@@ -16,6 +16,8 @@ import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { adminService } from "../services/adminService";
+import { getErrorMessage } from "../utils/apiError.js";
+import { resolveMediaUrl } from "../api/axiosInstance.js";
 
 const SEVERITY_TONE = { Critical: "critical", High: "high", Medium: "medium", Low: "low" };
 const STATUS_TONE = { Open: "info", "In Progress": "medium", Resolved: "success", Closed: "neutral" };
@@ -56,6 +58,7 @@ export default function Bugs() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [assigningBug, setAssigningBug] = useState(null);
   const [assigneeChoice, setAssigneeChoice] = useState("");
+  const [previewImage, setPreviewImage] = useState(null); // { url, title } for the lightbox modal
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,7 +77,7 @@ export default function Bugs() {
       setBugs(items);
       setTotal(data.total);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to load bugs");
+      toast.error(getErrorMessage(err, "Failed to load bugs"));
     } finally {
       setLoading(false);
     }
@@ -154,7 +157,7 @@ export default function Bugs() {
       setFormOpen(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save bug");
+      toast.error(getErrorMessage(err, "Failed to save bug"));
     } finally {
       setSaving(false);
     }
@@ -166,7 +169,7 @@ export default function Bugs() {
       toast.success(`Marked as ${status}`);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to update status");
+      toast.error(getErrorMessage(err, "Failed to update status"));
     }
   };
 
@@ -184,7 +187,7 @@ export default function Bugs() {
       setAssigningBug(null);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to assign bug");
+      toast.error(getErrorMessage(err, "Failed to assign bug"));
     }
   };
 
@@ -195,7 +198,7 @@ export default function Bugs() {
       setConfirmDelete(null);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to delete bug");
+      toast.error(getErrorMessage(err, "Failed to delete bug"));
     }
   };
 
@@ -205,10 +208,29 @@ export default function Bugs() {
     {
       key: "title",
       header: "Bug",
+      minWidth: 220,
       render: (row) => (
-        <div>
-          <p className="font-medium text-slate-800">{row.title}</p>
-          <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
+        <div className="flex items-center gap-3">
+          {row.image_url ? (
+            <button
+              type="button"
+              onClick={() => setPreviewImage({ url: resolveMediaUrl(row.image_url), title: row.title })}
+              className="shrink-0 overflow-hidden rounded-lg border border-border"
+              title="View screenshot"
+            >
+              <img
+                src={resolveMediaUrl(row.image_url)}
+                alt=""
+                className="h-10 w-10 object-cover"
+              />
+            </button>
+          ) : (
+            <div className="h-10 w-10 shrink-0" />
+          )}
+          <div>
+            <p className="font-medium text-slate-800">{row.title}</p>
+            <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
+          </div>
         </div>
       ),
     },
@@ -347,6 +369,16 @@ export default function Bugs() {
         }
       >
         <form className="space-y-4" onSubmit={handleSave}>
+          {editingBug?.image_url && (
+            <div>
+              <label className="label">Screenshot</label>
+              <img
+                src={resolveMediaUrl(editingBug.image_url)}
+                alt="Bug evidence"
+                className="max-h-48 w-full rounded-lg border border-border object-contain"
+              />
+            </div>
+          )}
           <div>
             <label className="label">Project</label>
             <Select
@@ -470,6 +502,24 @@ export default function Bugs() {
         <p className="text-sm text-slate-600">
           Delete <strong>{confirmDelete?.title}</strong>? This can&apos;t be undone.
         </p>
+      </Modal>
+      <Modal
+        open={Boolean(previewImage)}
+        onClose={() => setPreviewImage(null)}
+        title={previewImage?.title || "Screenshot"}
+        footer={
+          <Button variant="secondary" onClick={() => setPreviewImage(null)}>
+            Close
+          </Button>
+        }
+      >
+        {previewImage && (
+          <img
+            src={previewImage.url}
+            alt={previewImage.title}
+            className="max-h-[70vh] w-full rounded-lg object-contain"
+          />
+        )}
       </Modal>
     </div>
   );

@@ -13,10 +13,16 @@ import EmptyState from "../components/EmptyState.jsx";
 import Loader from "../components/Loader.jsx";
 import { sprintService } from "../services/sprintService";
 import { projectService } from "../services/projectService";
+import { getErrorMessage } from "../utils/apiError.js";
 
 const STATUS_TONE = { Planned: "neutral", Active: "info", Completed: "success" };
 
 const emptyForm = { name: "", startDate: "", endDate: "", status: "Planned" };
+
+// Today's date as YYYY-MM-DD — used as the HTML date input's `min` so a
+// past start/end date can't even be picked in the browser. The backend
+// (SprintCreate/SprintUpdate validators) is still the real enforcement.
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function Sprints() {
   const [projects, setProjects] = useState([]);
@@ -51,7 +57,7 @@ export default function Sprints() {
       const data = await sprintService.listSprints({ projectId: Number(selectedProjectId) });
       setSprints(data);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to load sprints");
+      toast.error(getErrorMessage(err, "Failed to load sprints"));
     } finally {
       setLoading(false);
     }
@@ -88,6 +94,14 @@ export default function Sprints() {
       toast.error("Sprint name is required");
       return;
     }
+    if (form.startDate && form.startDate < todayStr()) {
+      toast.error("Start date can't be in the past");
+      return;
+    }
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      toast.error("End date can't be before the start date");
+      return;
+    }
     setSaving(true);
     try {
       if (editingSprint) {
@@ -111,7 +125,7 @@ export default function Sprints() {
       setFormOpen(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save sprint");
+      toast.error(getErrorMessage(err, "Failed to save sprint"));
     } finally {
       setSaving(false);
     }
@@ -124,7 +138,7 @@ export default function Sprints() {
       setConfirmDelete(null);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to delete sprint");
+      toast.error(getErrorMessage(err, "Failed to delete sprint"));
     }
   };
 
@@ -235,12 +249,14 @@ export default function Sprints() {
             <Input
               label="Start date"
               type="date"
+              min={todayStr()}
               value={form.startDate}
               onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
             />
             <Input
               label="End date"
               type="date"
+              min={form.startDate || todayStr()}
               value={form.endDate}
               onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
             />

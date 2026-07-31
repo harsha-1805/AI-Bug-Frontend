@@ -5,7 +5,6 @@ import {
   Bug,
   ListChecks,
   Rocket,
-  PackageCheck,
   BarChart3,
   Sparkles,
   Settings,
@@ -13,17 +12,19 @@ import {
   Bot,
   Wand2,
   Users,
+  ScrollText,
   X,
 } from "lucide-react";
 import Avatar from "./Avatar.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../hooks/useSidebar";
-import { canManageUsers } from "../utils/rbac";
+import { canManageUsers, canViewAuditLog } from "../utils/rbac";
 
 // AI Bug Generator is flagged `highlight: true` so it visually stands out
-// as the main Phase 2 feature. Sprints/Releases are kept (existing
-// routes/functionality are never removed) even though the Phase 2 brief's
-// menu list omits them — see README "Assumptions" for why.
+// as the main Phase 2 feature.
+//
+// Releases module removed from the nav per team decision — the route
+// and backend data still exist, this is purely a visibility change.
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects", label: "Projects", icon: FolderKanban },
@@ -31,9 +32,11 @@ const NAV_ITEMS = [
   { to: "/bugs", label: "Bugs", icon: Bug },
   { to: "/tasks", label: "Tasks", icon: ListChecks },
   { to: "/sprints", label: "Sprints", icon: Rocket },
-  { to: "/releases", label: "Releases", icon: PackageCheck },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/ai-assistant", label: "AI Assistant", icon: Sparkles },
+  // Audit Log: QA, Lead ("Project Manager") and Admin only — see
+  // utils/rbac.js canViewAuditLog, mirroring "audit.view" server-side.
+  { to: "/audit-log", label: "Audit Log", icon: ScrollText, auditOnly: true },
   // Phase 3/4: only rendered for roles with user-management access — see
   // the `.filter()` below. Placed right before Settings so it reads as
   // an admin/workspace-level item, not a personal one.
@@ -48,7 +51,11 @@ export default function Sidebar() {
   // Icon-only rail on tablet when collapsed; full labels everywhere else.
   const showLabels = isMobile || !collapsed;
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || canManageUsers(user));
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.adminOnly && !canManageUsers(user)) return false;
+    if (item.auditOnly && !canViewAuditLog(user)) return false;
+    return true;
+  });
 
   return (
     <>

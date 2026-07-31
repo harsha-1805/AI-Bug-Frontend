@@ -13,6 +13,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import Loader from "../components/Loader.jsx";
 import { projectService } from "../services/projectService";
 import { adminService } from "../services/adminService";
+import { getErrorMessage } from "../utils/apiError.js";
 
 export default function Projects() {
   const [loading, setLoading] = useState(true);
@@ -36,7 +37,7 @@ export default function Projects() {
       setProjects(data.items);
       setTotal(data.total);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to load projects");
+      toast.error(getErrorMessage(err, "Failed to load projects"));
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ export default function Projects() {
       setFormOpen(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save project");
+      toast.error(getErrorMessage(err, "Failed to save project"));
     } finally {
       setSaving(false);
     }
@@ -109,7 +110,7 @@ export default function Projects() {
       setConfirmDelete(null);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to delete project");
+      toast.error(getErrorMessage(err, "Failed to delete project"));
     }
   };
 

@@ -5,6 +5,7 @@ import AuthLayout from "../layouts/AuthLayout.jsx";
 import Input from "../components/Input.jsx";
 import Button from "../components/Button.jsx";
 import { useAuth } from "../hooks/useAuth";
+import { getErrorMessage } from "../utils/apiError.js";
 
 export default function Login() {
   const { login } = useAuth();
@@ -22,7 +23,7 @@ export default function Login() {
       const redirectTo = location.state?.from?.pathname || "/dashboard";
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      const message = err?.response?.data?.detail || "Invalid email or password";
+      const message = getErrorMessage(err, "Invalid email or password");
       toast.error(message);
     }
   };

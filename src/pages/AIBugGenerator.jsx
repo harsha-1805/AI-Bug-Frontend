@@ -13,6 +13,8 @@ import { aiBugService } from "../services/aiBugService";
 import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
+import { getErrorMessage } from "../utils/apiError.js";
+import { resolveMediaUrl } from "../api/axiosInstance.js";
 
 export default function AIBugGenerator() {
   const [image, setImage] = useState(null);
@@ -81,7 +83,7 @@ export default function AIBugGenerator() {
       setResult(data);
       toast.success("Bug report generated.");
     } catch (err) {
-      const message = err?.response?.data?.detail || "Failed to generate bug report.";
+      const message = getErrorMessage(err, "Failed to generate bug report.");
       toast.error(typeof message === "string" ? message : "Failed to generate bug report.");
     } finally {
       setLoading(false);
@@ -126,6 +128,10 @@ export default function AIBugGenerator() {
         confidenceScore: bugReport.confidence_score,
         stepsToReproduce: bugReport.steps_to_reproduce || [],
         isAiGenerated: true,
+        // Persisted screenshot from the AI Bug Generator (see
+        // app/services/image_storage.py) — saved onto the Bug so it can
+        // be previewed later on the Bugs list/detail, not just here.
+        imageUrl: result.image_url,
       });
       setSaved(true);
       toast.success(
@@ -133,7 +139,7 @@ export default function AIBugGenerator() {
       );
       return saved_;
     } catch (err) {
-      const message = err?.response?.data?.detail || "Failed to save bug.";
+      const message = getErrorMessage(err, "Failed to save bug.");
       toast.error(typeof message === "string" ? message : "Failed to save bug.");
     } finally {
       setSaving(false);
@@ -183,6 +189,16 @@ export default function AIBugGenerator() {
 
           {!loading && result && (
             <>
+              {result.image_url && (
+                <div className="card overflow-hidden p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-500">Attached screenshot</p>
+                  <img
+                    src={resolveMediaUrl(result.image_url)}
+                    alt="Uploaded bug evidence"
+                    className="max-h-64 w-full rounded-lg border border-border object-contain"
+                  />
+                </div>
+              )}
               <BugSummaryCard bugReport={result.bug_report} />
               <ConfidenceCard score={result.bug_report.confidence_score} />
               <BugReportForm

@@ -13,7 +13,17 @@
 // Lead calling GET /admin/users would still succeed server-side.
 const ROLES_WITH_USER_MANAGEMENT_ACCESS = ["Admin", "HR"];
 
+// Audit Log module: visible to QA, Lead ("Project Manager") and Admin —
+// mirrors "audit.view" in role_service.ROLE_PERMISSIONS. HR/Employee
+// don't get the nav item; the backend would 403 them anyway.
+const ROLES_WITH_AUDIT_LOG_ACCESS = ["Admin", "Lead", "QA"];
+
 export function canManageUsers(user) {
   const roleNames = (user?.roles?.length ? user.roles : [user?.role]).filter(Boolean).map((r) => r.name);
   return roleNames.some((name) => ROLES_WITH_USER_MANAGEMENT_ACCESS.includes(name));
+}
+
+export function canViewAuditLog(user) {
+  const roleNames = (user?.roles?.length ? user.roles : [user?.role]).filter(Boolean).map((r) => r.name);
+  return roleNames.some((name) => ROLES_WITH_AUDIT_LOG_ACCESS.includes(name));
 }

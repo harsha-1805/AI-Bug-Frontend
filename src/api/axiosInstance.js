@@ -3,8 +3,19 @@ import axios from "axios";
 // Single Axios instance used across the whole app. Every service module
 // (authService, and future projectService/bugService/etc.) imports this
 // instead of creating its own axios client.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+// The backend returns evidence image URLs as relative paths
+// (e.g. "/uploads/bugs/<uuid>.png", see app/services/image_storage.py).
+// This turns that into an absolute URL an <img src> can load directly.
+export function resolveMediaUrl(path) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },

@@ -58,6 +58,15 @@ export const adminService = {
     const { data } = await axiosInstance.delete(`${ADMIN_BASE}/${userId}`);
     return data;
   },
+
+  // Admin/HR resets another user's password directly (no current
+  // password required — that's the whole point vs. authService.changePassword).
+  async resetPassword(userId, newPassword) {
+    const { data } = await axiosInstance.patch(`${ADMIN_BASE}/${userId}/password`, {
+      new_password: newPassword,
+    });
+    return data;
+  },
 };
 
 export const rolesService = {

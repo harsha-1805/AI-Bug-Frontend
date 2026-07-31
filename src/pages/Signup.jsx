@@ -5,6 +5,8 @@ import AuthLayout from "../layouts/AuthLayout.jsx";
 import Input from "../components/Input.jsx";
 import Button from "../components/Button.jsx";
 import { useAuth } from "../hooks/useAuth";
+import { getErrorMessage } from "../utils/apiError.js";
+import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS } from "../utils/emailValidation.js";
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -23,7 +25,7 @@ export default function Signup() {
       await signup(values);
       navigate("/login", { replace: true });
     } catch (err) {
-      const message = err?.response?.data?.detail || "Could not create your account";
+      const message = getErrorMessage(err, "Could not create your account");
       toast.error(message);
     }
   };
@@ -40,9 +42,14 @@ export default function Signup() {
         <Input
           label="Email address"
           type="email"
-          placeholder="you@company.com"
+          placeholder="you@gmail.com"
           error={errors.email?.message}
-          {...register("email", { required: "Email is required" })}
+          {...register("email", {
+            required: "Email is required",
+            validate: (value) =>
+              isEmailDomainAllowed(value) ||
+              `Please use a standard email domain (${ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(", ")})`,
+          })}
         />
         <Input
           label="Password"

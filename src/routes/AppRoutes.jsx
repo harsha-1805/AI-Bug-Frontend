@@ -11,9 +11,9 @@ import AIBugGenerator from "../pages/AIBugGenerator.jsx";
 import Bugs from "../pages/Bugs.jsx";
 import Tasks from "../pages/Tasks.jsx";
 import Sprints from "../pages/Sprints.jsx";
-import Releases from "../pages/Releases.jsx";
 import Reports from "../pages/Reports.jsx";
 import AIAssistant from "../pages/AIAssistant.jsx";
+import AuditLog from "../pages/AuditLog.jsx";
 import Settings from "../pages/Settings.jsx";
 import UserManagement from "../pages/UserManagement.jsx";
 import NotFound from "../pages/NotFound.jsx";
@@ -34,9 +34,9 @@ export default function AppRoutes() {
           <Route path="/bugs" element={<Bugs />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/sprints" element={<Sprints />} />
-          <Route path="/releases" element={<Releases />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
+          <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/settings" element={<Settings />} />
 
           {/* Admin-only (Phase 3/4 RBAC + User Management) */}

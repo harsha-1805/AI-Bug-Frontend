@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
- 
+
 /**
  * Custom Tailwind dropdown/select control.
  *
@@ -35,41 +35,41 @@ export default function Select({
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
   const listboxId = useId();
- 
+
   const selectedIndex = options.findIndex((o) => String(o.value) === String(value));
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : null;
- 
+
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
- 
+
     const rect = trigger.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
- 
+
     // Menu is always at least as wide as the trigger, but never wider
     // than the viewport (with a small margin) on narrow/mobile screens.
     const width = Math.min(Math.max(rect.width, 180), viewportWidth - 16);
- 
+
     const estimatedHeight = Math.min(options.length * 38 + 10, 280);
     const openUp = rect.bottom + estimatedHeight + 8 > viewportHeight && rect.top > estimatedHeight;
- 
+
     let left = rect.left;
     left = Math.max(8, Math.min(left, viewportWidth - width - 8));
- 
+
     const top = openUp
       ? Math.max(8, rect.top - estimatedHeight - 6)
       : Math.min(rect.bottom + 6, viewportHeight - 8);
- 
+
     setPosition({ top, left, width });
   }, [options.length]);
- 
+
   useEffect(() => {
     if (!open) return undefined;
- 
+
     updatePosition();
     setHighlighted(selectedIndex >= 0 ? selectedIndex : 0);
- 
+
     const handleOutside = (event) => {
       if (
         !triggerRef.current?.contains(event.target) &&
@@ -78,7 +78,7 @@ export default function Select({
         setOpen(false);
       }
     };
- 
+
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     document.addEventListener("mousedown", handleOutside);
@@ -89,14 +89,14 @@ export default function Select({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, updatePosition]);
- 
+
   const commit = (option) => {
     if (!option || option.disabled) return;
     onChange?.(option.value);
     setOpen(false);
     triggerRef.current?.focus();
   };
- 
+
   const moveHighlight = (delta) => {
     setHighlighted((prev) => {
       let next = prev;
@@ -107,7 +107,7 @@ export default function Select({
       return prev;
     });
   };
- 
+
   const handleTriggerKeyDown = (event) => {
     if (disabled) return;
     if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
@@ -125,7 +125,7 @@ export default function Select({
       setOpen(false);
     }
   };
- 
+
   const handleMenuKeyDown = (event) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -144,7 +144,7 @@ export default function Select({
       setOpen(false);
     }
   };
- 
+
   const menu =
     open && typeof document !== "undefined"
       ? createPortal(
@@ -189,7 +189,7 @@ export default function Select({
           document.body
         )
       : null;
- 
+
   // Only fall back to the full-width default when the caller hasn't
   // supplied its own width utility (e.g. "w-auto", "w-40", "max-w-xs").
   // Previously "w-full" was always included alongside a caller's width
@@ -199,7 +199,7 @@ export default function Select({
   // sitting side by side.
   const hasWidthOverride = /(^|\s)w-/.test(className);
   const widthClass = hasWidthOverride ? className : `w-full ${className}`;
- 
+
   return (
     <div className={`relative inline-block ${widthClass}`}>
       <button

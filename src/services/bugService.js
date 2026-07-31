@@ -33,7 +33,10 @@ export const bugService = {
 
   // `payload` can be a plain manually-typed bug, OR the exact
   // `bug_report` object returned by aiBugService.generateBug() with
-  // isAiGenerated: true — the shape matches on purpose.
+  // isAiGenerated: true — the shape matches on purpose. `imageUrl` is
+  // the persisted screenshot path returned alongside that bug_report
+  // (see aiBugService.generateBug -> result.image_url) so it's saved
+  // onto the Bug and can be previewed later wherever the bug is shown.
   async createBug({
     projectId,
     sprintId,
@@ -54,6 +57,7 @@ export const bugService = {
     confidenceScore,
     stepsToReproduce = [],
     isAiGenerated = false,
+    imageUrl,
   }) {
     const { data } = await axiosInstance.post(BUGS_BASE, {
       project_id: projectId,
@@ -75,6 +79,7 @@ export const bugService = {
       confidence_score: confidenceScore ?? undefined,
       steps_to_reproduce: stepsToReproduce,
       is_ai_generated: isAiGenerated,
+      image_url: imageUrl || undefined,
     });
     return data;
   },
@@ -100,6 +105,7 @@ export const bugService = {
       possibleRootCause: "possible_root_cause",
       confidenceScore: "confidence_score",
       stepsToReproduce: "steps_to_reproduce",
+      imageUrl: "image_url",
     };
     Object.entries(fields || {}).forEach(([key, value]) => {
       if (map[key] && value !== undefined) payload[map[key]] = value;
