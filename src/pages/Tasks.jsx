@@ -13,7 +13,6 @@ import Badge from "../components/Badge.jsx";
 import { taskService } from "../services/taskService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
-import { adminService } from "../services/adminService";
 import { subtaskService } from "../services/subtaskService";
 import { getErrorMessage } from "../utils/apiError.js";
 
@@ -47,7 +46,10 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]);
+  // Project-scoped team members for whichever project is selected in the
+  // form — a task can only be assigned to someone on that project's team
+  // (or Admin/Lead), see app/services/project_access.py on the backend.
+  const [formMembers, setFormMembers] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(""); // "" = all projects
 
   const [formOpen, setFormOpen] = useState(false);
@@ -67,6 +69,8 @@ export default function Tasks() {
   const [subtasks, setSubtasks] = useState([]);
   const [subtasksLoading, setSubtasksLoading] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState("");
+  const [subtaskMembers, setSubtaskMembers] = useState([]); // subtaskTask's project team, for the assignee dropdown
   const [addingSubtask, setAddingSubtask] = useState(false);
 
   const loadTasks = useCallback(async () => {
@@ -88,27 +92,33 @@ export default function Tasks() {
   }, [loadTasks]);
 
   useEffect(() => {
+    // Already team-scoped server-side (see GET /api/v1/projects ->
+    // project_access.accessible_project_ids), so every dropdown fed from
+    // `projects` automatically only shows projects this user can use.
     projectService
       .listProjects({ pageSize: 100 })
       .then((data) => setProjects(data.items))
       .catch(() => {});
-    adminService
-      .listUsers({ pageSize: 100 })
-      .then((data) => setUsers(data.items))
-      .catch(() => {});
   }, []);
 
   // Whenever the form's selected project changes, refresh which sprints
-  // are offered — a task's sprint has to belong to the same project.
+  // AND which team members are offered — a task's sprint has to belong
+  // to the same project, and its assignee has to be a member of that
+  // project's team (or Admin/Lead).
   useEffect(() => {
     if (!form.projectId) {
       setFormSprints([]);
+      setFormMembers([]);
       return;
     }
     sprintService
       .listSprints({ projectId: Number(form.projectId) })
       .then(setFormSprints)
       .catch(() => setFormSprints([]));
+    projectService
+      .listProjectMembers(Number(form.projectId))
+      .then(setFormMembers)
+      .catch(() => setFormMembers([]));
   }, [form.projectId]);
 
   const openCreate = () => {
@@ -245,6 +255,7 @@ export default function Tasks() {
     setSubtaskTask(task);
     setSubtasksLoading(true);
     setNewSubtaskTitle("");
+    setNewSubtaskAssignee("");
     try {
       const data = await subtaskService.listSubtasks({ taskId: task.id });
       setSubtasks(data);
@@ -253,6 +264,13 @@ export default function Tasks() {
     } finally {
       setSubtasksLoading(false);
     }
+    // A subtask can only be assigned to someone on the PARENT TASK's
+    // project team (or Admin/Lead) — a subtask always inherits the
+    // task's project, see app/services/subtask_service.py.
+    projectService
+      .listProjectMembers(task.project_id)
+      .then(setSubtaskMembers)
+      .catch(() => setSubtaskMembers([]));
   };
 
   const handleAddSubtask = async (e) => {
@@ -263,9 +281,11 @@ export default function Tasks() {
       const created = await subtaskService.createSubtask({
         taskId: subtaskTask.id,
         title: newSubtaskTitle.trim(),
+        assignedTo: newSubtaskAssignee ? Number(newSubtaskAssignee) : undefined,
       });
       setSubtasks((prev) => [created, ...prev]);
       setNewSubtaskTitle("");
+      setNewSubtaskAssignee("");
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to add subtask"));
     } finally {
@@ -417,9 +437,16 @@ export default function Tasks() {
                               <ListTree size={12} className="mr-0.5 inline" />
                               Subtasks
                             </button>
-                            {task.assignee && <Avatar name={task.assignee.full_name} size={24} />}
+                            {task.assignee && (
+                              <Avatar name={task.assignee.full_name} size={24} />
+                            )}
                           </div>
                         </div>
+                        {task.reporter && (
+                          <p className="mt-1.5 text-[11px] text-slate-400">
+                            Reported by {task.reporter.full_name}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -453,7 +480,7 @@ export default function Tasks() {
             <Select
               value={form.projectId}
               disabled={Boolean(editingTask)}
-              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "" }))}
+              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "", assignedTo: "" }))}
               placeholder="Select a project"
               ariaLabel="Project"
               options={projects.map((p) => ({ value: p.id, label: p.name }))}
@@ -517,12 +544,25 @@ export default function Tasks() {
             <label className="label">Assignee</label>
             <Select
               value={form.assignedTo}
+              disabled={!form.projectId}
               onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
-              placeholder="Unassigned"
+              placeholder={form.projectId ? "Unassigned" : "Select a project first"}
               ariaLabel="Assignee"
-              options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+              options={formMembers.map((m) => ({ value: m.user_id, label: m.full_name }))}
             />
+            <p className="mt-1 text-xs text-slate-400">
+              Only this project's team members can be assigned.
+            </p>
           </div>
+          {editingTask?.reporter && (
+            <div>
+              <label className="label">Reported by</label>
+              <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                <Avatar name={editingTask.reporter.full_name} size={20} />
+                <span className="text-sm text-slate-600">{editingTask.reporter.full_name}</span>
+              </div>
+            </div>
+          )}
         </form>
       </Modal>
 
@@ -538,16 +578,26 @@ export default function Tasks() {
         }
       >
         <div className="space-y-4">
-          <form className="flex gap-2" onSubmit={handleAddSubtask}>
-            <Input
-              value={newSubtaskTitle}
-              onChange={(e) => setNewSubtaskTitle(e.target.value)}
-              placeholder="Add a subtask..."
-              className="flex-1"
+          <form className="space-y-2" onSubmit={handleAddSubtask}>
+            <div className="flex gap-2">
+              <Input
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                placeholder="Add a subtask..."
+                className="flex-1"
+              />
+              <Button type="submit" loading={addingSubtask} icon={Plus}>
+                Add
+              </Button>
+            </div>
+            <Select
+              value={newSubtaskAssignee}
+              onChange={setNewSubtaskAssignee}
+              placeholder="Unassigned"
+              ariaLabel="Subtask assignee"
+              className="w-auto min-w-[10rem]"
+              options={subtaskMembers.map((m) => ({ value: m.user_id, label: m.full_name }))}
             />
-            <Button type="submit" loading={addingSubtask} icon={Plus}>
-              Add
-            </Button>
           </form>
 
           {subtasksLoading ? (
@@ -577,12 +627,20 @@ export default function Tasks() {
                     >
                       {st.status === "Done" && <Check size={12} />}
                     </span>
-                    <span
-                      className={`text-sm ${
-                        st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
-                      }`}
-                    >
-                      {st.title}
+                    <span className="min-w-0">
+                      <span
+                        className={`block truncate text-sm ${
+                          st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
+                        }`}
+                      >
+                        {st.title}
+                      </span>
+                      {(st.assignee || st.reporter) && (
+                        <span className="block text-[11px] text-slate-400">
+                          {st.assignee ? `Assigned: ${st.assignee.full_name}` : "Unassigned"}
+                          {st.reporter ? ` · Reported by ${st.reporter.full_name}` : ""}
+                        </span>
+                      )}
                     </span>
                   </button>
                   <div className="flex items-center gap-2">

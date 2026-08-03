@@ -31,6 +31,19 @@ export const bugService = {
     return data;
   },
 
+  // Screenshot upload for a manually-created bug (separate from the AI
+  // Bug Generator flow, which persists its own image server-side). Upload
+  // the file first to get `image_url`, then include that in the
+  // createBug/updateBug payload. No explicit Content-Type here on
+  // purpose — axios/the browser set the multipart boundary automatically
+  // for FormData bodies (see api/axiosInstance.js interceptor).
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append("image", file);
+    const { data } = await axiosInstance.post(`${BUGS_BASE}/upload-image`, formData);
+    return data; // { image_url }
+  },
+
   // `payload` can be a plain manually-typed bug, OR the exact
   // `bug_report` object returned by aiBugService.generateBug() with
   // isAiGenerated: true — the shape matches on purpose. `imageUrl` is

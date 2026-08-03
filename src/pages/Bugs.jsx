@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -15,7 +15,6 @@ import Loader from "../components/Loader.jsx";
 import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
-import { adminService } from "../services/adminService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 
@@ -34,6 +33,7 @@ const emptyForm = {
   status: "Open",
   description: "",
   assignedTo: "",
+  imageUrl: "",
 };
 
 export default function Bugs() {
@@ -42,7 +42,10 @@ export default function Bugs() {
   const [total, setTotal] = useState(0);
 
   const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]);
+  // Project-scoped team members for whichever project is selected in the
+  // create/edit form — a bug can only be assigned to someone on that
+  // project's team (or Admin/Lead), see app/services/project_access.py.
+  const [formMembers, setFormMembers] = useState([]);
   const [formSprints, setFormSprints] = useState([]); // sprints for whichever project is selected in the form
 
   // Filters
@@ -55,9 +58,16 @@ export default function Bugs() {
   const [editingBug, setEditingBug] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Assign modal — members scoped to the bug being assigned's project
   const [assigningBug, setAssigningBug] = useState(null);
+  const [assigningMembers, setAssigningMembers] = useState([]);
+  const [assigningMembersLoading, setAssigningMembersLoading] = useState(false);
   const [assigneeChoice, setAssigneeChoice] = useState("");
+
   const [previewImage, setPreviewImage] = useState(null); // { url, title } for the lightbox modal
 
   const load = useCallback(async () => {
@@ -88,21 +98,31 @@ export default function Bugs() {
   }, [load]);
 
   useEffect(() => {
+    // The project list itself is already team-scoped server-side (see
+    // GET /api/v1/projects -> project_access.accessible_project_ids), so
+    // every dropdown fed from `projects` automatically only shows
+    // projects this user can actually use.
     projectService.listProjects({ pageSize: 100 }).then((data) => setProjects(data.items)).catch(() => {});
-    adminService.listUsers({ pageSize: 100 }).then((data) => setUsers(data.items)).catch(() => {});
   }, []);
 
   // Whenever the form's selected project changes, refresh which sprints
-  // are offered — a bug's sprint has to belong to the same project.
+  // AND which team members are offered — a bug's sprint has to belong to
+  // the same project, and its assignee has to be a member of that
+  // project's team (or Admin/Lead).
   useEffect(() => {
     if (!form.projectId) {
       setFormSprints([]);
+      setFormMembers([]);
       return;
     }
     sprintService
       .listSprints({ projectId: Number(form.projectId) })
       .then(setFormSprints)
       .catch(() => setFormSprints([]));
+    projectService
+      .listProjectMembers(Number(form.projectId))
+      .then(setFormMembers)
+      .catch(() => setFormMembers([]));
   }, [form.projectId]);
 
   const openCreate = () => {
@@ -122,8 +142,23 @@ export default function Bugs() {
       status: bug.status,
       description: bug.description || "",
       assignedTo: bug.assignee?.id ? String(bug.assignee.id) : "",
+      imageUrl: bug.image_url || "",
     });
     setFormOpen(true);
+  };
+
+  const handleImageSelect = async (file) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const { image_url } = await bugService.uploadImage(file);
+      setForm((f) => ({ ...f, imageUrl: image_url }));
+      toast.success("Screenshot uploaded");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to upload screenshot"));
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -146,6 +181,7 @@ export default function Bugs() {
         sprintId: form.sprintId ? Number(form.sprintId) : undefined,
         assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
         description: form.description.trim() || undefined,
+        imageUrl: form.imageUrl || undefined,
       };
       if (editingBug) {
         await bugService.updateBug(editingBug.id, shared);
@@ -173,9 +209,19 @@ export default function Bugs() {
     }
   };
 
-  const openAssign = (bug) => {
+  const openAssign = async (bug) => {
     setAssigningBug(bug);
     setAssigneeChoice(bug.assignee?.id ? String(bug.assignee.id) : "");
+    setAssigningMembersLoading(true);
+    try {
+      const members = await projectService.listProjectMembers(bug.project_id);
+      setAssigningMembers(members);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load project team"));
+      setAssigningMembers([]);
+    } finally {
+      setAssigningMembersLoading(false);
+    }
   };
 
   const handleAssign = async (e) => {
@@ -256,6 +302,19 @@ export default function Bugs() {
           </div>
         ) : (
           <span className="text-xs text-slate-300">Unassigned</span>
+        ),
+    },
+    {
+      key: "reporter",
+      header: "Reported by",
+      render: (row) =>
+        row.reporter ? (
+          <div className="flex items-center gap-2">
+            <Avatar name={row.reporter.full_name} size={24} />
+            <span className="text-sm text-slate-600">{row.reporter.full_name}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
         ),
     },
     {
@@ -357,6 +416,7 @@ export default function Bugs() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         title={editingBug ? "Edit bug" : "Create bug"}
+        className="max-w-xl"
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
@@ -369,22 +429,59 @@ export default function Bugs() {
         }
       >
         <form className="space-y-4" onSubmit={handleSave}>
-          {editingBug?.image_url && (
-            <div>
-              <label className="label">Screenshot</label>
-              <img
-                src={resolveMediaUrl(editingBug.image_url)}
-                alt="Bug evidence"
-                className="max-h-48 w-full rounded-lg border border-border object-contain"
-              />
-            </div>
-          )}
+          <div>
+            <label className="label">Screenshot (optional)</label>
+            {form.imageUrl ? (
+              <div className="relative overflow-hidden rounded-lg border border-border">
+                <img
+                  src={resolveMediaUrl(form.imageUrl)}
+                  alt="Bug evidence"
+                  className="max-h-48 w-full object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                  className="absolute right-2 top-2 rounded-lg bg-slate-900/60 p-1.5 text-white hover:bg-slate-900/80"
+                  aria-label="Remove screenshot"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-canvas px-4 py-6 text-center transition-colors hover:border-primary-300 hover:bg-primary-50/30"
+                onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!uploadingImage) handleImageSelect(e.dataTransfer.files?.[0]);
+                }}
+              >
+                {uploadingImage ? (
+                  <Loader label="Uploading..." />
+                ) : (
+                  <>
+                    <UploadCloud size={22} className="text-primary-500" />
+                    <p className="text-xs text-slate-500">Click or drag a screenshot here (optional)</p>
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={(e) => handleImageSelect(e.target.files?.[0])}
+                />
+              </div>
+            )}
+          </div>
           <div>
             <label className="label">Project</label>
             <Select
               value={form.projectId}
               disabled={Boolean(editingBug)}
-              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "" }))}
+              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "", assignedTo: "" }))}
               placeholder="Select a project"
               ariaLabel="Project"
               options={projects.map((p) => ({ value: p.id, label: p.name }))}
@@ -449,11 +546,15 @@ export default function Bugs() {
               <label className="label">Assignee</label>
               <Select
                 value={form.assignedTo}
+                disabled={!form.projectId}
                 onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
-                placeholder="Unassigned"
+                placeholder={form.projectId ? "Unassigned" : "Select a project first"}
                 ariaLabel="Assignee"
-                options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+                options={formMembers.map((m) => ({ value: m.user_id, label: m.full_name }))}
               />
+              <p className="mt-1 text-xs text-slate-400">
+                Only this project's team members can be assigned.
+              </p>
             </div>
           </div>
         </form>
@@ -468,19 +569,30 @@ export default function Bugs() {
             <Button variant="secondary" onClick={() => setAssigningBug(null)}>
               Cancel
             </Button>
-            <Button onClick={handleAssign}>Assign</Button>
+            <Button onClick={handleAssign} disabled={!assigneeChoice || assigningMembersLoading}>
+              Assign
+            </Button>
           </>
         }
       >
         <form onSubmit={handleAssign}>
           <label className="label">Assignee</label>
-          <Select
-            value={assigneeChoice}
-            onChange={setAssigneeChoice}
-            placeholder="Select a teammate"
-            ariaLabel="Assignee"
-            options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-          />
+          {assigningMembersLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader label="Loading team..." />
+            </div>
+          ) : (
+            <Select
+              value={assigneeChoice}
+              onChange={setAssigneeChoice}
+              placeholder="Select a teammate"
+              ariaLabel="Assignee"
+              options={assigningMembers.map((m) => ({ value: m.user_id, label: m.full_name }))}
+            />
+          )}
+          <p className="mt-1 text-xs text-slate-400">
+            Only this project's team members can be assigned.
+          </p>
         </form>
       </Modal>
 
