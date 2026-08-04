@@ -17,6 +17,7 @@ import AuditLog from "../pages/AuditLog.jsx";
 import Settings from "../pages/Settings.jsx";
 import UserManagement from "../pages/UserManagement.jsx";
 import NotFound from "../pages/NotFound.jsx";
+import RoleRoute from "../routes/RoleRoute.jsx"
 
 export default function AppRoutes() {
   return (
@@ -34,15 +35,26 @@ export default function AppRoutes() {
           <Route path="/bugs" element={<Bugs />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/sprints" element={<Sprints />} />
-          <Route path="/reports" element={<Reports />} />
+          {/* <Route path="/reports" element={<Reports />} /> */}
           <Route path="/ai-assistant" element={<AIAssistant />} />
-          <Route path="/audit-log" element={<AuditLog />} />
+          {/* <Route path="/audit-log" element={<AuditLog />} /> */}
           <Route path="/settings" element={<Settings />} />
 
-          {/* Admin-only (Phase 3/4 RBAC + User Management) */}
-          <Route element={<AdminRoute />}>
+          {/* Admin + HR */}
+          <Route element={<RoleRoute allowedRoles={["Admin", "HR"]} />}>
             <Route path="/admin/users" element={<UserManagement />} />
           </Route>
+
+          {/* Admin + HR + Lead + QA */}
+          <Route element={<RoleRoute allowedRoles={["Admin", "HR", "Lead", "QA"]} />}>
+            <Route path="/reports" element={<Reports />} />
+          </Route>
+
+          {/* Admin + Lead + QA */}
+          <Route element={<RoleRoute allowedRoles={["Admin", "Lead", "QA"]} />}>
+            <Route path="/audit-log" element={<AuditLog />} />
+          </Route>
+
         </Route>
       </Route>
 
@@ -52,3 +64,4 @@ export default function AppRoutes() {
     </Routes>
   );
 }
+

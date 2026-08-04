@@ -18,6 +18,16 @@ const ROLES_WITH_USER_MANAGEMENT_ACCESS = ["Admin", "HR"];
 // don't get the nav item; the backend would 403 them anyway.
 const ROLES_WITH_AUDIT_LOG_ACCESS = ["Admin", "Lead", "QA"];
 
+// Reports module: every role gets "reports.view" server-side except
+// Employee (see ROLE_PERMISSIONS in role_service.py) — hide the nav
+// item for Employee so it doesn't 403 for them.
+const ROLES_WITH_REPORTS_ACCESS = ["Admin", "Lead", "HR", "QA"];
+
+export function canViewReports(user) {
+  const roleNames = (user?.roles?.length ? user.roles : [user?.role]).filter(Boolean).map((r) => r.name);
+  return roleNames.some((name) => ROLES_WITH_REPORTS_ACCESS.includes(name));
+}
+
 export function canManageUsers(user) {
   const roleNames = (user?.roles?.length ? user.roles : [user?.role]).filter(Boolean).map((r) => r.name);
   return roleNames.some((name) => ROLES_WITH_USER_MANAGEMENT_ACCESS.includes(name));

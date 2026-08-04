@@ -18,7 +18,7 @@ import {
 import Avatar from "./Avatar.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../hooks/useSidebar";
-import { canManageUsers, canViewAuditLog } from "../utils/rbac";
+import { canManageUsers, canViewAuditLog, canViewReports } from "../utils/rbac";
 
 // AI Bug Generator is flagged `highlight: true` so it visually stands out
 // as the main Phase 2 feature.
@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { to: "/bugs", label: "Bugs", icon: Bug },
   { to: "/tasks", label: "Tasks", icon: ListChecks },
   { to: "/sprints", label: "Sprints", icon: Rocket },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/reports", label: "Reports", icon: BarChart3, reportsOnly: true },
   { to: "/ai-assistant", label: "AI Assistant", icon: Sparkles },
   // Audit Log: QA, Lead ("Project Manager") and Admin only — see
   // utils/rbac.js canViewAuditLog, mirroring "audit.view" server-side.
@@ -54,6 +54,7 @@ export default function Sidebar() {
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (item.adminOnly && !canManageUsers(user)) return false;
     if (item.auditOnly && !canViewAuditLog(user)) return false;
+    if (item.reportsOnly && !canViewReports(user)) return false;
     return true;
   });
 
