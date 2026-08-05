@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose, Sparkles } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -18,6 +19,7 @@ import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
+import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
 const SEVERITY_TONE = { Critical: "critical", High: "high", Medium: "medium", Low: "low" };
 const STATUS_TONE = { Open: "info", "In Progress": "medium", Resolved: "success", Closed: "neutral" };
@@ -38,6 +40,7 @@ const emptyForm = {
 };
 
 export default function Bugs() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [bugs, setBugs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -264,13 +267,32 @@ export default function Bugs() {
 
   const projectName = (id) => projects.find((p) => p.id === id)?.name || `#${id}`;
 
+  // Drop this bug on the Sidebar's "AI Assistant" link, or click
+  // "Generate test cases" directly — either way it hands the bug off
+  // (see utils/aiHandoff.js) and jumps to the AI Assistant, which
+  // generates the test cases grounded in this bug's recorded fields.
+  const handleGenerateTestCases = (bug) => {
+    setPendingTestCaseRequest("bug", bug.id, bug.title);
+    navigate("/ai-assistant");
+  };
+
+  const handleTitleDragStart = (bug) => (e) => {
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData(AI_ENTITY_DRAG_MIME, JSON.stringify({ entityType: "bug", entityId: bug.id, title: bug.title }));
+  };
+
   const columns = [
     {
       key: "title",
       header: "Bug",
       minWidth: 220,
       render: (row) => (
-        <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-3"
+          draggable
+          onDragStart={handleTitleDragStart(row)}
+          title="Drag onto AI Assistant to generate test cases"
+        >
           {row.image_url ? (
             <button
               type="button"
@@ -368,6 +390,7 @@ export default function Bugs() {
           items={[
             { label: "Edit bug", icon: Pencil, onClick: () => openEdit(row) },
             { label: "Assign", icon: UserPlus, onClick: () => openAssign(row) },
+            { label: "Generate test cases", icon: Sparkles, onClick: () => handleGenerateTestCases(row) },
             ...STATUSES.filter((s) => s !== row.status).map((s) => ({
               label: `Mark as ${s}`,
               onClick: () => changeStatus(row, s),

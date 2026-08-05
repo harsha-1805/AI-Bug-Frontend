@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, ListTree, X, Check, LayoutGrid, Table2 } from "lucide-react";
+import {
+  Plus,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  ListTree,
+  X,
+  Check,
+  LayoutGrid,
+  Table2,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
 import Modal from "../components/Modal.jsx";
@@ -17,6 +30,8 @@ import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { subtaskService } from "../services/subtaskService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { resolveMediaUrl } from "../api/axiosInstance.js";
+import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
 // These three are the only statuses the backend model actually supports
 // (see Task.status in app/models.py) — keeping the columns in sync with
@@ -39,12 +54,14 @@ const emptyForm = {
   sprintId: "",
   title: "",
   description: "",
+  acceptanceCriteria: "",
   dueDate: "",
   assignedTo: "",
   status: "To Do",
 };
 
 export default function Tasks() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -79,6 +96,13 @@ export default function Tasks() {
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState("");
   const [subtaskMembers, setSubtaskMembers] = useState([]); // subtaskTask's project team, for the assignee dropdown
   const [addingSubtask, setAddingSubtask] = useState(false);
+
+  // Reference screenshots (design mocks / expected-result shots) attached
+  // to whichever task is currently being edited — only available once a
+  // task exists (needs a task_id to upload against), fed to the AI
+  // test-case generator alongside description/acceptance criteria.
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -131,6 +155,7 @@ export default function Tasks() {
   const openCreate = () => {
     setEditingTask(null);
     setForm({ ...emptyForm, projectId: selectedProjectId || "" });
+    setAttachments([]);
     setFormOpen(true);
   };
 
@@ -141,10 +166,12 @@ export default function Tasks() {
       sprintId: task.sprint_id ? String(task.sprint_id) : "",
       title: task.title,
       description: task.description || "",
+      acceptanceCriteria: task.acceptance_criteria || "",
       dueDate: task.due_date || "",
       assignedTo: task.assignee?.id ? String(task.assignee.id) : "",
       status: task.status,
     });
+    setAttachments(task.attachments || []);
     setFormOpen(true);
   };
 
@@ -175,6 +202,7 @@ export default function Tasks() {
         await taskService.updateTask(editingTask.id, {
           title: form.title.trim(),
           description: form.description.trim() || undefined,
+          acceptanceCriteria: form.acceptanceCriteria.trim() || undefined,
           status: form.status,
           dueDate: form.dueDate || undefined,
           assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
@@ -186,6 +214,7 @@ export default function Tasks() {
           projectId: Number(form.projectId),
           title: form.title.trim(),
           description: form.description.trim() || undefined,
+          acceptanceCriteria: form.acceptanceCriteria.trim() || undefined,
           status: form.status,
           dueDate: form.dueDate || undefined,
           assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
@@ -226,6 +255,40 @@ export default function Tasks() {
     }
   };
 
+  // --- Reference screenshot attachments (AI test-case grounding) ---------
+  const handleAttachmentUpload = async (file) => {
+    if (!file || !editingTask) return;
+    setUploadingAttachment(true);
+    try {
+      const created = await taskService.uploadAttachment(editingTask.id, file);
+      setAttachments((prev) => [...prev, created]);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to upload screenshot"));
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
+  const handleAttachmentDelete = async (attachment) => {
+    const prev = attachments;
+    setAttachments((cur) => cur.filter((a) => a.id !== attachment.id));
+    try {
+      await taskService.deleteAttachment(attachment.id);
+    } catch (err) {
+      setAttachments(prev);
+      toast.error(getErrorMessage(err, "Failed to delete screenshot"));
+    }
+  };
+
+  // --- AI test case generation handoff ------------------------------------
+  // Drop a task on the Sidebar's "AI Assistant" link, or click this
+  // directly — either way it hands the task off (see utils/aiHandoff.js)
+  // and jumps to the AI Assistant, which generates the test cases.
+  const handleGenerateTestCases = (task) => {
+    setPendingTestCaseRequest("task", task.id, task.title);
+    navigate("/ai-assistant");
+  };
+
   const projectName = (id) => projects.find((p) => p.id === id)?.name;
 
   // --- Drag and drop handlers ---------------------------------------------
@@ -234,6 +297,11 @@ export default function Tasks() {
     e.dataTransfer.effectAllowed = "move";
     // Some browsers require data to be set for drag to work at all.
     e.dataTransfer.setData("text/plain", String(task.id));
+    // Also carry the AI-handoff payload on the SAME drag gesture — a
+    // kanban column drop ignores this custom type, and the Sidebar's
+    // "AI Assistant" link ignores the plain-text id, so one drag works
+    // for both destinations.
+    e.dataTransfer.setData(AI_ENTITY_DRAG_MIME, JSON.stringify({ entityType: "task", entityId: task.id, title: task.title }));
   };
 
   const handleDragEnd = () => {
@@ -386,6 +454,7 @@ export default function Tasks() {
           onEdit={openEdit}
           onDelete={setConfirmDelete}
           onChangeStatus={changeStatus}
+          onGenerateTestCases={handleGenerateTestCases}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -440,6 +509,7 @@ export default function Tasks() {
                               label={<MoreVertical size={14} />}
                               items={[
                                 { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
+                                { label: "Generate test cases", icon: Sparkles, onClick: () => handleGenerateTestCases(task) },
                                 ...COLUMNS.filter((c) => c.key !== task.status).map((c) => ({
                                   label: `Move to ${c.label}`,
                                   onClick: () => changeStatus(task, c.key),
@@ -562,6 +632,65 @@ export default function Tasks() {
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
+          </div>
+          <div>
+            <label className="label">Acceptance criteria</label>
+            <textarea
+              className="input min-h-[70px]"
+              value={form.acceptanceCriteria}
+              onChange={(e) => setForm((f) => ({ ...f, acceptanceCriteria: e.target.value }))}
+              placeholder={"e.g.\n- User sees a validation error for an invalid email\n- Password field masks input by default"}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              What must be true for this to be considered done — the AI test-case generator uses this to make
+              sure every condition gets its own test case.
+            </p>
+          </div>
+          <div>
+            <label className="label">Reference screenshots (optional)</label>
+            {editingTask ? (
+              <>
+                {attachments.length > 0 && (
+                  <div className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {attachments.map((att) => (
+                      <div key={att.id} className="group relative overflow-hidden rounded-lg border border-border">
+                        <img src={resolveMediaUrl(att.image_url)} alt="" className="h-16 w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleAttachmentDelete(att)}
+                          className="absolute right-1 top-1 rounded-lg bg-slate-900/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-label="Remove screenshot"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-canvas px-4 py-3 text-center text-xs text-slate-500 transition-colors hover:border-primary-300 hover:bg-primary-50/30">
+                  {uploadingAttachment ? (
+                    <Loader label="Uploading..." size={14} />
+                  ) : (
+                    <>
+                      <UploadCloud size={16} className="text-primary-500" /> Add a design mock or expected-result
+                      screenshot
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    className="hidden"
+                    disabled={uploadingAttachment}
+                    onChange={(e) => handleAttachmentUpload(e.target.files?.[0])}
+                  />
+                </label>
+                <p className="mt-1 text-xs text-slate-400">
+                  Fed to the AI test-case generator alongside the description and acceptance criteria.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-slate-400">Save the task first, then you can attach reference screenshots.</p>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
