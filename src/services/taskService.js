@@ -3,11 +3,12 @@ import axiosInstance from "../api/axiosInstance";
 const TASKS_BASE = "/api/v1/tasks";
 
 export const taskService = {
-  async listTasks({ projectId, assignedTo } = {}) {
+  async listTasks({ projectId, assignedTo, sprintId } = {}) {
     const { data } = await axiosInstance.get(TASKS_BASE, {
       params: {
         project_id: projectId ?? undefined,
         assigned_to: assignedTo ?? undefined,
+        sprint_id: sprintId ?? undefined,
       },
     });
     return data; // array of tasks

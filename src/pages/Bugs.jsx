@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -12,6 +12,7 @@ import Dropdown from "../components/Dropdown.jsx";
 import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
+import DueDateBadge from "../components/DueDateBadge.jsx";
 import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
@@ -69,6 +70,7 @@ export default function Bugs() {
   const [assigneeChoice, setAssigneeChoice] = useState("");
 
   const [previewImage, setPreviewImage] = useState(null); // { url, title } for the lightbox modal
+  const [previewBug, setPreviewBug] = useState(null); // bug shown in the split-pane preview panel
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +98,17 @@ export default function Bugs() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Keep the split-pane preview in sync with the underlying row after an
+  // edit/status-change/assign triggers a reload, instead of showing stale
+  // data until the panel is closed and reopened.
+  useEffect(() => {
+    setPreviewBug((prev) => {
+      if (!prev) return prev;
+      const updated = bugs.find((b) => b.id === prev.id);
+      return updated || prev;
+    });
+  }, [bugs]);
 
   useEffect(() => {
     // The project list itself is already team-scoped server-side (see
@@ -241,6 +254,7 @@ export default function Bugs() {
     try {
       await bugService.deleteBug(confirmDelete.id);
       toast.success("Bug deleted");
+      if (previewBug?.id === confirmDelete.id) setPreviewBug(null);
       setConfirmDelete(null);
       load();
     } catch (err) {
@@ -273,10 +287,23 @@ export default function Bugs() {
           ) : (
             <div className="h-10 w-10 shrink-0" />
           )}
-          <div>
-            <p className="font-medium text-slate-800">{row.title}</p>
+          <button
+            type="button"
+            onClick={() => setPreviewBug(row)}
+            className="min-w-0 text-left"
+            title="Open preview"
+          >
+            <p className="font-medium text-slate-800 hover:text-primary-600">{row.title}</p>
             <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
-          </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreviewBug(row)}
+            title="Preview"
+            className="ml-auto shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-primary-600"
+          >
+            <Eye size={15} />
+          </button>
         </div>
       ),
     },
@@ -377,7 +404,7 @@ export default function Bugs() {
           onChange={setProjectFilter}
           placeholder="All projects"
           ariaLabel="Filter by project"
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
         />
         <Select
           className="w-auto min-w-[9.5rem]"
@@ -400,17 +427,40 @@ export default function Bugs() {
         </span>
       </div>
 
-      {loading ? (
-        <div className="card flex items-center justify-center p-10">
-          <Loader label="Loading bugs..." />
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          {loading ? (
+            <div className="card flex items-center justify-center p-10">
+              <Loader label="Loading bugs..." />
+            </div>
+          ) : (
+            <Table
+              columns={columns}
+              data={bugs}
+              emptyMessage="No bugs match these filters."
+            />
+          )}
         </div>
-      ) : (
-        <Table
-          columns={columns}
-          data={bugs}
-          emptyMessage="No bugs match these filters."
-        />
-      )}
+
+        {/* Split-pane preview — opens beside the table (not over it) when
+            a bug's title or preview icon is clicked, Jira-issue-panel
+            style, instead of a full-screen modal. */}
+        {previewBug && (
+          <BugPreviewPanel
+            bug={previewBug}
+            projectName={projectName}
+            onClose={() => setPreviewBug(null)}
+            onEdit={() => {
+              openEdit(previewBug);
+            }}
+            onAssign={() => openAssign(previewBug)}
+            onDelete={() => setConfirmDelete(previewBug)}
+            onViewScreenshot={() =>
+              setPreviewImage({ url: resolveMediaUrl(previewBug.image_url), title: previewBug.title })
+            }
+          />
+        )}
+      </div>
 
       <Modal
         open={formOpen}
@@ -634,5 +684,105 @@ export default function Bugs() {
         )}
       </Modal>
     </div>
+  );
+}
+
+/**
+ * Split-pane bug detail panel — sits beside the bugs table (see the flex
+ * wrapper above) instead of covering it, so the list stays visible while
+ * reviewing a bug, similar to Jira's issue side-panel.
+ */
+function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete, onViewScreenshot }) {
+  return (
+    <aside className="sticky top-4 flex w-full max-w-sm shrink-0 flex-col rounded-2xl border border-border bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-xs text-slate-400">{projectName(bug.project_id)}</p>
+          <h3 className="truncate text-base font-semibold text-slate-800">{bug.title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close preview"
+          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          title="Close preview"
+        >
+          <PanelRightClose size={16} />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        {bug.image_url && (
+          <button type="button" onClick={onViewScreenshot} className="block w-full overflow-hidden rounded-xl border border-border">
+            <img src={resolveMediaUrl(bug.image_url)} alt="" className="max-h-48 w-full object-cover" />
+          </button>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Badge tone={SEVERITY_TONE[bug.severity] || "neutral"}>{bug.severity}</Badge>
+          <Badge tone="neutral">{bug.priority}</Badge>
+          <Badge tone={STATUS_TONE[bug.status] || "neutral"}>{bug.status}</Badge>
+        </div>
+
+        {bug.description && (
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Description</p>
+            <p className="whitespace-pre-wrap text-sm text-slate-600">{bug.description}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Assignee</p>
+            {bug.assignee ? (
+              <div className="flex items-center gap-2">
+                <Avatar name={bug.assignee.full_name} size={22} />
+                <span className="text-sm text-slate-600">{bug.assignee.full_name}</span>
+              </div>
+            ) : (
+              <span className="text-xs text-slate-300">Unassigned</span>
+            )}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Reported by</p>
+            {bug.reporter ? (
+              <div className="flex items-center gap-2">
+                <Avatar name={bug.reporter.full_name} size={22} />
+                <span className="text-sm text-slate-600">{bug.reporter.full_name}</span>
+              </div>
+            ) : (
+              <span className="text-xs text-slate-300">—</span>
+            )}
+          </div>
+        </div>
+
+        {bug.task && (
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Linked task</p>
+            <p className="text-sm text-slate-600">{bug.task.title}</p>
+            {bug.task.sprint && <Badge tone="info">{bug.task.sprint.name}</Badge>}
+          </div>
+        )}
+
+        {bug.due_date && (
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Due</p>
+            <DueDateBadge date={bug.due_date} doneLike={bug.status === "Closed" || bug.status === "Resolved"} />
+          </div>
+        )}
+      </div>
+
+      <div className="flex shrink-0 gap-2 border-t border-border px-4 py-3">
+        <Button variant="secondary" icon={Pencil} onClick={onEdit} className="flex-1">
+          Edit
+        </Button>
+        <Button variant="secondary" icon={UserPlus} onClick={onAssign} className="flex-1">
+          Assign
+        </Button>
+        <Button variant="danger" icon={Trash2} onClick={onDelete}>
+          <span className="sr-only">Delete</span>
+        </Button>
+      </div>
+    </aside>
   );
 }

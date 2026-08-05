@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, Rocket, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Plus, Rocket, MoreVertical, Pencil, Trash2, ListTree } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
-import Table from "../components/Table.jsx";
+import CollapsibleTable from "../components/CollapsibleTable.jsx";
 import Badge from "../components/Badge.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
 import Dropdown from "../components/Dropdown.jsx";
 import Select from "../components/Select.jsx";
+import Avatar from "../components/Avatar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import Loader from "../components/Loader.jsx";
+import DueDateBadge from "../components/DueDateBadge.jsx";
 import { sprintService } from "../services/sprintService";
 import { projectService } from "../services/projectService";
+import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
+
+const TASK_STATUS_TONE = { "To Do": "neutral", "In Progress": "medium", Done: "success" };
 
 const STATUS_TONE = { Planned: "neutral", Active: "info", Completed: "success" };
 
@@ -37,24 +42,25 @@ export default function Sprints() {
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
+    // Project list is already team-scoped server-side, and leaving
+    // selectedProjectId as "" (All projects) here — rather than
+    // auto-picking the first project — is what makes "All projects" the
+    // default landing view, same as Tasks/Bugs.
     projectService
       .listProjects({ pageSize: 100 })
-      .then((data) => {
-        setProjects(data.items);
-        if (data.items.length > 0) setSelectedProjectId(String(data.items[0].id));
-      })
+      .then((data) => setProjects(data.items))
       .catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
-    if (!selectedProjectId) {
-      setSprints([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
-      const data = await sprintService.listSprints({ projectId: Number(selectedProjectId) });
+      // project_id is optional server-side (GET /api/v1/sprints already
+      // defaults to every project this user can access), so "" here just
+      // means "don't filter" instead of an early-return empty state.
+      const data = await sprintService.listSprints({
+        projectId: selectedProjectId ? Number(selectedProjectId) : undefined,
+      });
       setSprints(data);
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to load sprints"));
@@ -142,8 +148,39 @@ export default function Sprints() {
     }
   };
 
+  const projectName = (id) => projects.find((p) => p.id === id)?.name || `#${id}`;
+
+  // Tasks-in-this-sprint, lazily loaded the first time a sprint row is
+  // expanded (Task.status doesn't include a per-sprint task list, so this
+  // is fetched via GET /api/v1/tasks?sprint_id=... on demand rather than
+  // up front for every sprint).
+  const [tasksBySprint, setTasksBySprint] = useState({});
+  const [loadingSprintId, setLoadingSprintId] = useState(null);
+
+  const loadSprintTasks = async (sprint) => {
+    if (tasksBySprint[sprint.id]) return;
+    setLoadingSprintId(sprint.id);
+    try {
+      const data = await taskService.listTasks({ sprintId: sprint.id });
+      setTasksBySprint((prev) => ({ ...prev, [sprint.id]: data }));
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load sprint tasks"));
+    } finally {
+      setLoadingSprintId(null);
+    }
+  };
+
   const columns = [
-    { key: "name", header: "Sprint", render: (row) => <span className="font-medium text-slate-800">{row.name}</span> },
+    {
+      key: "name",
+      header: "Sprint",
+      render: (row) => (
+        <div>
+          <span className="font-medium text-slate-800">{row.name}</span>
+          {!selectedProjectId && <p className="mt-0.5 text-xs text-primary-600">{projectName(row.project_id)}</p>}
+        </div>
+      ),
+    },
     {
       key: "start_date",
       header: "Start",
@@ -152,7 +189,12 @@ export default function Sprints() {
     {
       key: "end_date",
       header: "End",
-      render: (row) => (row.end_date ? new Date(row.end_date).toLocaleDateString() : "—"),
+      render: (row) =>
+        row.end_date ? (
+          <DueDateBadge date={row.end_date} doneLike={row.status === "Completed"} />
+        ) : (
+          "—"
+        ),
     },
     {
       key: "status",
@@ -174,6 +216,41 @@ export default function Sprints() {
     },
   ];
 
+  const renderSprintTasks = (sprint) => {
+    if (loadingSprintId === sprint.id) {
+      return (
+        <div className="flex items-center justify-center py-3">
+          <Loader label="Loading tasks..." />
+        </div>
+      );
+    }
+    const tasks = tasksBySprint[sprint.id];
+    if (!tasks) return null;
+    if (tasks.length === 0) {
+      return <p className="py-2 text-center text-xs text-slate-400">No tasks in this sprint yet.</p>;
+    }
+    return (
+      <ul className="space-y-1.5">
+        {tasks.map((t) => (
+          <li
+            key={t.id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-border bg-white px-3 py-2"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <ListTree size={14} className="shrink-0 text-slate-400" />
+              <span className="truncate text-sm text-slate-700">{t.title}</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {t.due_date && <DueDateBadge date={t.due_date} doneLike={t.status === "Done"} />}
+              <Badge tone={TASK_STATUS_TONE[t.status] || "neutral"}>{t.status}</Badge>
+              {t.assignee && <Avatar name={t.assignee.full_name} size={20} />}
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
     <div>
       <PageHeader
@@ -192,13 +269,16 @@ export default function Sprints() {
           className="max-w-xs"
           value={selectedProjectId}
           onChange={setSelectedProjectId}
-          placeholder="Select a project"
+          placeholder="All projects"
           ariaLabel="Project"
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
         />
+        {!selectedProjectId && (
+          <p className="text-xs text-slate-400">Pick a project above to create a new sprint in it.</p>
+        )}
       </div>
 
-      {!selectedProjectId ? (
+      {projects.length === 0 ? (
         <EmptyState
           icon={Rocket}
           title="No projects yet"
@@ -214,13 +294,19 @@ export default function Sprints() {
           title="No sprints yet"
           description="Create your first sprint to start scoping bugs and tasks by time-box."
           action={
-            <Button icon={Plus} onClick={openCreate}>
+            <Button icon={Plus} onClick={openCreate} disabled={!selectedProjectId}>
               New Sprint
             </Button>
           }
         />
       ) : (
-        <Table columns={columns} data={sprints} />
+        <CollapsibleTable
+          columns={columns}
+          data={sprints}
+          renderExpanded={renderSprintTasks}
+          onExpand={loadSprintTasks}
+          emptyMessage="No sprints match these filters."
+        />
       )}
 
       <Modal

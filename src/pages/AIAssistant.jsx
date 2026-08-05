@@ -79,7 +79,7 @@ export default function AIAssistant() {
             onChange={setProjectId}
             placeholder="All projects"
             ariaLabel="Scope to project"
-            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
           />
         }
       />

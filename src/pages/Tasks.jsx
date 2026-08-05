@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, Calendar, ListTree, X, Check } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, ListTree, X, Check, LayoutGrid, Table2 } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
 import Modal from "../components/Modal.jsx";
@@ -10,6 +10,8 @@ import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
 import Badge from "../components/Badge.jsx";
+import DueDateBadge from "../components/DueDateBadge.jsx";
+import TaskTableView from "../components/TaskTableView.jsx";
 import { taskService } from "../services/taskService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
@@ -51,6 +53,11 @@ export default function Tasks() {
   // (or Admin/Lead), see app/services/project_access.py on the backend.
   const [formMembers, setFormMembers] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(""); // "" = all projects
+
+  // "kanban" (drag-and-drop board) or "table" (Jira-backlog-style list
+  // with collapsible subtask rows) — same data and same status-change/
+  // edit/delete actions either way, just a different presentation.
+  const [viewMode, setViewMode] = useState("kanban");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null); // null = creating
@@ -327,22 +334,59 @@ export default function Tasks() {
         }
       />
 
-      <div className="mb-5 flex items-center gap-3">
-        <label className="text-sm text-slate-500">Project:</label>
-        <Select
-          className="max-w-xs"
-          value={selectedProjectId}
-          onChange={setSelectedProjectId}
-          placeholder="All projects"
-          ariaLabel="Filter by project"
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
-        />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-slate-500">Project:</label>
+          <Select
+            className="max-w-xs"
+            value={selectedProjectId}
+            onChange={setSelectedProjectId}
+            placeholder="All projects"
+            ariaLabel="Filter by project"
+            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+          />
+        </div>
+
+        {/* View toggle — kanban (drag-and-drop) vs table (collapsible list) */}
+        <div className="inline-flex rounded-lg border border-border bg-white p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("kanban")}
+            aria-pressed={viewMode === "kanban"}
+            title="Board view"
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              viewMode === "kanban" ? "bg-primary-50 text-primary-700" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <LayoutGrid size={14} /> Board
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            aria-pressed={viewMode === "table"}
+            title="Table view"
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              viewMode === "table" ? "bg-primary-50 text-primary-700" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Table2 size={14} /> Table
+          </button>
+        </div>
       </div>
 
       {loading ? (
         <div className="card flex items-center justify-center p-10">
           <Loader label="Loading tasks..." />
         </div>
+      ) : viewMode === "table" ? (
+        <TaskTableView
+          tasks={tasks}
+          projects={projects}
+          showProjectColumn={!selectedProjectId}
+          onEdit={openEdit}
+          onDelete={setConfirmDelete}
+          onChangeStatus={changeStatus}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {COLUMNS.map((col) => {
@@ -421,10 +465,7 @@ export default function Tasks() {
                         )}
                         <div className="flex items-center justify-between">
                           {task.due_date ? (
-                            <span className="flex items-center gap-1 text-xs text-slate-400">
-                              <Calendar size={12} />
-                              {new Date(task.due_date).toLocaleDateString()}
-                            </span>
+                            <DueDateBadge date={task.due_date} doneLike={task.status === "Done"} />
                           ) : (
                             <span />
                           )}

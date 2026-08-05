@@ -104,7 +104,7 @@ export default function Reports() {
             onChange={setProjectId}
             placeholder="All projects"
             ariaLabel="Filter by project"
-            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
           />
         </div>
         <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />

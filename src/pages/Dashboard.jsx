@@ -96,7 +96,7 @@ export default function Dashboard() {
             onChange={setProjectId}
             placeholder="All projects"
             ariaLabel="Filter by project"
-            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
           />
         }
       />
