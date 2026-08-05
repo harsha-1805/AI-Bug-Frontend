@@ -3,6 +3,7 @@ import Sidebar from "../components/Sidebar.jsx";
 import Navbar from "../components/Navbar.jsx";
 import AIAssistantWidget from "../components/AIAssistantWidget.jsx";
 import { SidebarProvider } from "../context/SidebarContext.jsx";
+import { ThemeProvider } from "../context/ThemeContext.jsx";
 import { useSidebar } from "../hooks/useSidebar";
 
 function DashboardShell() {
@@ -23,21 +24,12 @@ function DashboardShell() {
   );
 }
 
-/**
- * Shared shell for every authenticated page: responsive Sidebar (fixed
- * on desktop, collapsible on tablet, off-canvas drawer on mobile) +
- * fixed Navbar, with only the routed page content scrolling underneath.
- * New pages automatically get this layout by nesting under the route
- * that renders <DashboardLayout /> (see routes/AppRoutes.jsx).
- *
- * AIAssistantWidget is mounted here (not per-page) so every module
- * automatically gets the floating "ask AI about this page" icon in the
- * top-right corner without each page needing to wire it up itself.
- */
 export default function DashboardLayout() {
   return (
-    <SidebarProvider>
-      <DashboardShell />
-    </SidebarProvider>
+    <ThemeProvider>
+      <SidebarProvider>
+        <DashboardShell />
+      </SidebarProvider>
+    </ThemeProvider>
   );
 }

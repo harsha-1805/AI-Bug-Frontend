@@ -18,6 +18,7 @@ import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { useAuth } from "../hooks/useAuth";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
@@ -41,6 +42,9 @@ const emptyForm = {
 
 export default function Bugs() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoleName = user?.role?.name || (user?.roles?.[0]?.name) || "";
+  const canDeleteBug = ["Admin", "Lead", "QA"].includes(userRoleName);
   const [loading, setLoading] = useState(true);
   const [bugs, setBugs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -315,7 +319,12 @@ export default function Bugs() {
             className="min-w-0 text-left"
             title="Open preview"
           >
-            <p className="font-medium text-slate-800 hover:text-primary-600">{row.title}</p>
+            <p className="font-medium text-slate-800 hover:text-primary-600">
+              {row.custom_id && (
+                <span className="mr-1.5 inline-block rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 align-middle">{row.custom_id}</span>
+              )}
+              {row.title}
+            </p>
             <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
           </button>
           <button
@@ -395,7 +404,7 @@ export default function Bugs() {
               label: `Mark as ${s}`,
               onClick: () => changeStatus(row, s),
             })),
-            { label: "Delete bug", icon: Trash2, onClick: () => setConfirmDelete(row) },
+            ...(canDeleteBug ? [{ label: "Delete bug", icon: Trash2, onClick: () => setConfirmDelete(row) }] : []),
           ]}
         />
       ),

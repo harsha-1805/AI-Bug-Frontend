@@ -30,6 +30,7 @@ import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { subtaskService } from "../services/subtaskService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { useAuth } from "../hooks/useAuth";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
@@ -62,6 +63,11 @@ const emptyForm = {
 
 export default function Tasks() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoleName = user?.role?.name || (user?.roles?.[0]?.name) || "";
+  const canDeleteTask = ["Admin", "Lead", "QA"].includes(userRoleName);
+  const canCreateTask = ["Admin", "Lead", "QA"].includes(userRoleName);
+  const canAssignTask = ["Admin", "Lead", "QA"].includes(userRoleName);
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -96,6 +102,8 @@ export default function Tasks() {
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState("");
   const [subtaskMembers, setSubtaskMembers] = useState([]); // subtaskTask's project team, for the assignee dropdown
   const [addingSubtask, setAddingSubtask] = useState(false);
+  const [editingSubtaskId, setEditingSubtaskId] = useState(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
 
   // Reference screenshots (design mocks / expected-result shots) attached
   // to whichever task is currently being edited — only available once a
@@ -390,6 +398,25 @@ export default function Tasks() {
     }
   };
 
+  const startEditSubtask = (subtask) => {
+    setEditingSubtaskId(subtask.id);
+    setEditingSubtaskTitle(subtask.title);
+  };
+
+  const commitSubtaskRename = async (subtask) => {
+    const trimmed = editingSubtaskTitle.trim();
+    setEditingSubtaskId(null);
+    if (!trimmed || trimmed === subtask.title) return;
+    const prev = subtasks;
+    setSubtasks((cur) => cur.map((s) => (s.id === subtask.id ? { ...s, title: trimmed } : s)));
+    try {
+      await subtaskService.updateSubtask(subtask.id, { title: trimmed });
+    } catch (err) {
+      setSubtasks(prev);
+      toast.error(getErrorMessage(err, "Failed to rename subtask"));
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -495,7 +522,12 @@ export default function Tasks() {
                         }`}
                       >
                         <div className="mb-1.5 flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-800">{task.title}</p>
+                          <p className="text-sm font-medium text-slate-800">
+                              {task.custom_id && (
+                                <span className="mr-1 inline-block rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 align-middle">{task.custom_id}</span>
+                              )}
+                              {task.title}
+                            </p>
                           <div className="flex shrink-0 items-center gap-0.5">
                             <button
                               type="button"
@@ -514,11 +546,11 @@ export default function Tasks() {
                                   label: `Move to ${c.label}`,
                                   onClick: () => changeStatus(task, c.key),
                                 })),
-                                {
+                                ...(canDeleteTask ? [{
                                   label: "Delete",
                                   icon: Trash2,
                                   onClick: () => setConfirmDelete(task),
-                                },
+                                }] : []),
                               ]}
                             />
                           </div>
@@ -783,28 +815,46 @@ export default function Tasks() {
                   key={st.id}
                   className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleSubtaskDone(st)}
-                    className="flex flex-1 items-center gap-2 text-left"
-                  >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                        st.status === "Done"
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-slate-300"
-                      }`}
+                  <div className="flex flex-1 items-center gap-2 text-left">
+                    <button
+                      type="button"
+                      onClick={() => toggleSubtaskDone(st)}
+                      className="flex-shrink-0"
                     >
-                      {st.status === "Done" && <Check size={12} />}
-                    </span>
-                    <span className="min-w-0">
                       <span
-                        className={`block truncate text-sm ${
-                          st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                          st.status === "Done"
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-slate-300"
                         }`}
                       >
-                        {st.title}
+                        {st.status === "Done" && <Check size={12} />}
                       </span>
+                    </button>
+                    <span className="min-w-0 flex-1">
+                      {editingSubtaskId === st.id ? (
+                        <input
+                          autoFocus
+                          className="w-full rounded border border-primary-300 px-1.5 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                          value={editingSubtaskTitle}
+                          onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                          onBlur={() => commitSubtaskRename(st)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitSubtaskRename(st);
+                            if (e.key === "Escape") setEditingSubtaskId(null);
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className={`block truncate text-sm cursor-text ${
+                            st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
+                          }`}
+                          title="Click to rename"
+                          onDoubleClick={() => startEditSubtask(st)}
+                        >
+                          {st.title}
+                        </span>
+                      )}
                       {(st.assignee || st.reporter) && (
                         <span className="block text-[11px] text-slate-400">
                           {st.assignee ? `Assigned: ${st.assignee.full_name}` : "Unassigned"}
@@ -812,7 +862,7 @@ export default function Tasks() {
                         </span>
                       )}
                     </span>
-                  </button>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge tone={st.status === "Done" ? "success" : "neutral"}>{st.status}</Badge>
                     <button

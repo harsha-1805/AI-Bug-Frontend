@@ -1,9 +1,10 @@
-import { Bell, Settings as SettingsIcon, LogOut, Menu, X } from "lucide-react";
+import { Bell, Settings as SettingsIcon, LogOut, Menu, X, Moon, Sun } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
 import Dropdown from "./Dropdown.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../hooks/useSidebar";
+import { useTheme } from "../context/ThemeContext.jsx";
 
 const TITLES = {
   "/dashboard": "Dashboard",
@@ -24,6 +25,7 @@ export default function Navbar() {
   const title = TITLES[location.pathname] || "BugPilot AI";
   const { mobileOpen, collapsed, isMobile, toggleSidebar } = useSidebar();
   const menuIsOpen = isMobile ? mobileOpen : !collapsed;
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <header
@@ -45,6 +47,16 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Dark / Light theme toggle — excluded from sign-in/sign-up pages which use AuthLayout */}
+        <button
+          onClick={toggleTheme}
+          className="rounded-xl p-2 text-slate-500 hover:bg-slate-50 transition-colors"
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
         <button className="relative rounded-xl p-2 text-slate-500 hover:bg-slate-50">
           <Bell size={18} />
           <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary-600" />

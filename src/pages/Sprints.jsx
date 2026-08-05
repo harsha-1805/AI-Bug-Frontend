@@ -22,7 +22,7 @@ const TASK_STATUS_TONE = { "To Do": "neutral", "In Progress": "medium", Done: "s
 
 const STATUS_TONE = { Planned: "neutral", Active: "info", Completed: "success" };
 
-const emptyForm = { name: "", startDate: "", endDate: "", status: "Planned" };
+const emptyForm = { name: "", startDate: "", endDate: "", status: "Planned", projectId: "" };
 
 // Today's date as YYYY-MM-DD — used as the HTML date input's `min` so a
 // past start/end date can't even be picked in the browser. The backend
@@ -75,7 +75,7 @@ export default function Sprints() {
 
   const openCreate = () => {
     setEditingSprint(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, projectId: selectedProjectId || "" });
     setFormOpen(true);
   };
 
@@ -86,13 +86,14 @@ export default function Sprints() {
       startDate: sprint.start_date || "",
       endDate: sprint.end_date || "",
       status: sprint.status,
+      projectId: String(sprint.project_id || ""),
     });
     setFormOpen(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!selectedProjectId) {
+    if (!form.projectId && !editingSprint) {
       toast.error("Select a project first");
       return;
     }
@@ -120,7 +121,7 @@ export default function Sprints() {
         toast.success("Sprint updated");
       } else {
         await sprintService.createSprint({
-          projectId: Number(selectedProjectId),
+          projectId: Number(form.projectId),
           name: form.name.trim(),
           startDate: form.startDate || undefined,
           endDate: form.endDate || undefined,
@@ -257,7 +258,7 @@ export default function Sprints() {
         title="Sprints"
         subtitle="Plan, run, and review sprint cycles"
         actions={
-          <Button icon={Plus} onClick={openCreate} disabled={!selectedProjectId}>
+          <Button icon={Plus} onClick={openCreate}>
             New Sprint
           </Button>
         }
@@ -273,9 +274,7 @@ export default function Sprints() {
           ariaLabel="Project"
           options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
         />
-        {!selectedProjectId && (
-          <p className="text-xs text-slate-400">Pick a project above to create a new sprint in it.</p>
-        )}
+
       </div>
 
       {projects.length === 0 ? (
@@ -294,7 +293,7 @@ export default function Sprints() {
           title="No sprints yet"
           description="Create your first sprint to start scoping bugs and tasks by time-box."
           action={
-            <Button icon={Plus} onClick={openCreate} disabled={!selectedProjectId}>
+            <Button icon={Plus} onClick={openCreate}>
               New Sprint
             </Button>
           }
@@ -325,6 +324,18 @@ export default function Sprints() {
         }
       >
         <form className="space-y-4" onSubmit={handleSave}>
+          {!editingSprint && (
+            <div>
+              <label className="label">Project</label>
+              <Select
+                value={form.projectId}
+                onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
+                placeholder="Select a project"
+                ariaLabel="Project"
+                options={projects.map((p) => ({ value: String(p.id), label: p.name }))}
+              />
+            </div>
+          )}
           <Input
             label="Sprint name"
             value={form.name}
