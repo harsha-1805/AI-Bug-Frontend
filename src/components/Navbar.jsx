@@ -48,14 +48,14 @@ export default function Navbar() {
 
       <div className="flex items-center gap-3">
         {/* Dark / Light theme toggle — excluded from sign-in/sign-up pages which use AuthLayout */}
-        <button
+        {/* <button
           onClick={toggleTheme}
           className="rounded-xl p-2 text-slate-500 hover:bg-slate-50 transition-colors"
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
           title={isDark ? "Switch to light mode" : "Switch to dark mode"}
         >
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        </button> */}
 
         <button className="relative rounded-xl p-2 text-slate-500 hover:bg-slate-50">
           <Bell size={18} />
