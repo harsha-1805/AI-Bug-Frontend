@@ -12,6 +12,11 @@ import {
   Download,
   FileSpreadsheet,
   Wand2,
+  RefreshCw,
+  Save,
+  ChevronDown,
+  ChevronUp,
+  Eye,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Select from "../components/Select.jsx";
@@ -27,10 +32,6 @@ import { getErrorMessage } from "../utils/apiError.js";
 import { downloadCsv } from "../utils/downloadCsv.js";
 import { takePendingTestCaseRequest } from "../utils/aiHandoff.js";
 
-// The 5 basic capabilities the backend's intent router actually
-// understands right now (see app/services/ai_assistant_service.py).
-// Anything outside these falls back to a single grounded Gemini call —
-// intentionally minimal for v1, matching the "basic for now" scope.
 const SUGGESTION_CARDS = [
   { icon: Bug, text: "Show me the open bugs", hint: "Filter bugs" },
   { icon: LayoutGrid, text: "Summarize the bugs", hint: "Bug summary" },
@@ -39,22 +40,210 @@ const SUGGESTION_CARDS = [
   { icon: ListTree, text: "Which module is most unstable?", hint: "Module analysis" },
 ];
 
+// ── TestCaseMessage ──────────────────────────────────────────────────────────
+// Renders a single AI test-case result bubble with:
+//   • inline preview table (expandable)
+//   • Regenerate (with feedback textarea)
+//   • Save to Library
+//   • Download CSV
+function TestCaseMessage({ msg, projects, onRegenerate, onSave, regenerating }) {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [previewExpanded, setPreviewExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Which project to save against — pre-fill if there is only one.
+  const [saveProjectId, setSaveProjectId] = useState(
+    projects.length === 1 ? String(projects[0].id) : ""
+  );
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+
+  const handleRegenerate = () => {
+    if (!feedback.trim()) {
+      toast.error("Tell the AI what to fix or add before regenerating.");
+      return;
+    }
+    onRegenerate(msg.entityType, msg.entityId, feedback.trim());
+    setFeedback("");
+    setFeedbackOpen(false);
+  };
+
+  const handleSave = async () => {
+    if (!saveProjectId) {
+      toast.error("Select a project to save under.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave({
+        entityType: msg.entityType,
+        entityId: msg.entityId,
+        entityTitle: msg.entityTitle,
+        projectId: Number(saveProjectId),
+        testCases: msg.rows,
+        csv: msg.csv,
+      });
+      setSaveModalOpen(false);
+      toast.success("Test cases saved to library!");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save test cases."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const displayRows = previewExpanded ? msg.rows : msg.rows.slice(0, 5);
+
+  return (
+    <div className="max-w-[90%] rounded-2xl border border-primary-100 bg-primary-50/40 px-4 py-3 text-sm text-slate-700">
+      {/* Header */}
+      <div className="mb-2 flex items-center gap-2 font-medium text-slate-800">
+        <FileSpreadsheet size={15} className="text-primary-600" />
+        {msg.count} test case{msg.count === 1 ? "" : "s"} generated for &ldquo;{msg.entityTitle}&rdquo;
+      </div>
+
+      {/* Preview table */}
+      <div className="overflow-auto rounded-lg border border-border bg-white">
+        <table className="w-full text-left text-xs">
+          <thead className="sticky top-0 bg-slate-50 text-slate-500">
+            <tr>
+              <th className="px-2.5 py-1.5 font-medium">ID</th>
+              <th className="px-2.5 py-1.5 font-medium">Title</th>
+              <th className="px-2.5 py-1.5 font-medium">Type</th>
+              <th className="px-2.5 py-1.5 font-medium">Priority</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((row, idx) => (
+              <tr key={idx} className="border-t border-border hover:bg-slate-50">
+                <td className="px-2.5 py-1.5 text-slate-400">{row["Test Case ID"]}</td>
+                <td className="max-w-[200px] truncate px-2.5 py-1.5">{row["Title"]}</td>
+                <td className="px-2.5 py-1.5 text-slate-500">{row["Type"]}</td>
+                <td className="px-2.5 py-1.5 text-slate-500">{row["Priority"]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {msg.rows.length > 5 && (
+          <button
+            type="button"
+            onClick={() => setPreviewExpanded((v) => !v)}
+            className="flex w-full items-center justify-center gap-1 border-t border-border px-2.5 py-1.5 text-[11px] text-primary-600 hover:bg-primary-50"
+          >
+            {previewExpanded ? (
+              <><ChevronUp size={11} /> Show less</>
+            ) : (
+              <><ChevronDown size={11} /> Show {msg.rows.length - 5} more</>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Feedback / Regenerate */}
+      {feedbackOpen ? (
+        <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-medium text-amber-800">
+            Describe what to fix or add:
+          </p>
+          <textarea
+            className="input min-h-[70px] text-xs"
+            placeholder="e.g. Add more edge cases for empty input fields. Make the steps more specific about which button to click."
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={regenerating || !feedback.trim()}
+              className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+            >
+              {regenerating ? <Loader size={11} /> : <RefreshCw size={11} />}
+              Regenerate
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFeedbackOpen(false); setFeedback(""); }}
+              className="rounded-lg px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadCsv(msg.csv, `test-cases-${msg.entityTitle}`)}
+            className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700"
+          >
+            <Download size={12} /> Download CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+          >
+            <RefreshCw size={12} /> Regenerate
+          </button>
+          <button
+            type="button"
+            onClick={() => setSaveModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+          >
+            <Save size={12} /> Save to Library
+          </button>
+        </div>
+      )}
+
+      {/* Save modal */}
+      <Modal
+        open={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        title="Save test cases to library"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSaveModalOpen(false)}>Cancel</Button>
+            <Button loading={saving} onClick={handleSave} disabled={!saveProjectId}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Saving <strong>{msg.count} test cases</strong> for &ldquo;{msg.entityTitle}&rdquo; to the library.
+          </p>
+          <div>
+            <label className="label">Project</label>
+            <Select
+              value={saveProjectId}
+              onChange={setSaveProjectId}
+              placeholder="Select project"
+              ariaLabel="Project"
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Saved test cases will be visible under Tasks → AI Test Cases for this project.
+            </p>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
 export default function AIAssistant() {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
-  // Each entry is either a plain chat bubble ({ role, text }) or a
-  // test-case result ({ role: "assistant", kind: "test-cases",
-  // entityType, entityTitle, count, rows, csv }) rendered with its own
-  // preview + Download CSV button.
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState("");
   const scrollRef = useRef(null);
 
-  // Manual "Generate Test Cases" picker — the reliable alternative to
-  // dragging a card onto the Sidebar's AI Assistant link: pick a
-  // project, then a task or bug from it, no drag required.
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerProjectId, setPickerProjectId] = useState("");
   const [pickerType, setPickerType] = useState("task");
@@ -71,11 +260,8 @@ export default function AIAssistant() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, sending]);
+  }, [messages, sending, regenerating]);
 
-  // Pick up a Task/Bug handed off by a drag onto the Sidebar's "AI
-  // Assistant" link, or a card/row's "Generate test cases" action —
-  // see utils/aiHandoff.js. Runs once on mount, after either route.
   useEffect(() => {
     const pending = takePendingTestCaseRequest();
     if (pending?.entityType && pending?.entityId) {
@@ -84,8 +270,6 @@ export default function AIAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Whenever the picker's project changes, load that project's tasks
-  // or bugs for the item dropdown.
   useEffect(() => {
     if (!pickerOpen || !pickerProjectId) {
       setPickerItems([]);
@@ -122,7 +306,6 @@ export default function AIAssistant() {
     }
   };
 
-  // --- AI test case generation ---------------------------------------------
   const generateTestCases = async (entityType, entityId, title) => {
     const label = entityType === "task" ? "Task" : "Bug";
     setMessages((prev) => [
@@ -138,6 +321,7 @@ export default function AIAssistant() {
           role: "assistant",
           kind: "test-cases",
           entityType,
+          entityId,
           entityTitle: result.entity_title,
           count: result.count,
           rows: result.test_cases,
@@ -151,6 +335,42 @@ export default function AIAssistant() {
     } finally {
       setSending(false);
     }
+  };
+
+  // Regenerate: replace the last test-case message for that entity with the
+  // new result so the conversation doesn't balloon with repeated generations.
+  const regenerateTestCases = async (entityType, entityId, feedback) => {
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: `Regenerate test cases with feedback: "${feedback}"` },
+    ]);
+    setRegenerating(true);
+    try {
+      const result = await aiAssistantService.regenerateTestCases({ entityType, entityId, feedback });
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          kind: "test-cases",
+          entityType,
+          entityId,
+          entityTitle: result.entity_title,
+          count: result.count,
+          rows: result.test_cases,
+          csv: result.csv,
+        },
+      ]);
+    } catch (err) {
+      const errMsg = getErrorMessage(err, "Couldn't regenerate test cases.");
+      setMessages((prev) => [...prev, { role: "assistant", text: errMsg }]);
+      toast.error(errMsg);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const saveTestCases = async (payload) => {
+    return aiAssistantService.saveTestCases(payload);
   };
 
   const handlePickerGenerate = () => {
@@ -201,7 +421,7 @@ export default function AIAssistant() {
                   Hi{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}! How can I help?
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Try one of these, ask your own question, or drag a Task/Bug onto "AI Assistant" in the
+                  Try one of these, ask your own question, or drag a Task/Bug onto &ldquo;AI Assistant&rdquo; in the
                   sidebar to generate test cases for it.
                 </p>
               </div>
@@ -245,44 +465,13 @@ export default function AIAssistant() {
                   </span>
 
                   {m.kind === "test-cases" ? (
-                    <div className="max-w-[85%] rounded-2xl border border-primary-100 bg-primary-50/40 px-4 py-3 text-sm text-slate-700">
-                      <div className="mb-2 flex items-center gap-2 font-medium text-slate-800">
-                        <FileSpreadsheet size={15} className="text-primary-600" />
-                        {m.count} test case{m.count === 1 ? "" : "s"} generated for &ldquo;{m.entityTitle}&rdquo;
-                      </div>
-                      <div className="max-h-56 overflow-auto rounded-lg border border-border bg-white">
-                        <table className="w-full text-left text-xs">
-                          <thead className="sticky top-0 bg-slate-50 text-slate-500">
-                            <tr>
-                              <th className="px-2.5 py-1.5 font-medium">Title</th>
-                              <th className="px-2.5 py-1.5 font-medium">Type</th>
-                              <th className="px-2.5 py-1.5 font-medium">Priority</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {m.rows.slice(0, 6).map((row, idx) => (
-                              <tr key={idx} className="border-t border-border">
-                                <td className="max-w-[220px] truncate px-2.5 py-1.5">{row["Title"]}</td>
-                                <td className="px-2.5 py-1.5 text-slate-500">{row["Type"]}</td>
-                                <td className="px-2.5 py-1.5 text-slate-500">{row["Priority"]}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {m.rows.length > 6 && (
-                          <p className="px-2.5 py-1.5 text-[11px] text-slate-400">
-                            +{m.rows.length - 6} more in the CSV
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => downloadCsv(m.csv, `test-cases-${m.entityTitle}`)}
-                        className="mt-3 flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700"
-                      >
-                        <Download size={13} /> Download CSV
-                      </button>
-                    </div>
+                    <TestCaseMessage
+                      msg={m}
+                      projects={projects}
+                      onRegenerate={regenerateTestCases}
+                      onSave={saveTestCases}
+                      regenerating={regenerating}
+                    />
                   ) : (
                     <div
                       className={`max-w-[75%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm ${
@@ -294,12 +483,14 @@ export default function AIAssistant() {
                   )}
                 </div>
               ))}
-              {sending && (
+              {(sending || regenerating) && (
                 <div className="flex gap-3">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
                     <Sparkles size={14} />
                   </span>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-2.5 text-sm text-slate-400">Thinking...</div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-2.5 text-sm text-slate-400">
+                    {regenerating ? "Revising test cases..." : "Thinking..."}
+                  </div>
                 </div>
               )}
             </div>
@@ -312,14 +503,15 @@ export default function AIAssistant() {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Ask AI anything about your bugs, tasks, or sprints..."
             className="input"
-            disabled={sending}
+            disabled={sending || regenerating}
           />
-          <button type="submit" className="btn-primary" disabled={sending || !message.trim()}>
+          <button type="submit" className="btn-primary" disabled={sending || regenerating || !message.trim()}>
             <Send size={16} />
           </button>
         </form>
       </div>
 
+      {/* Generate Test Cases picker modal */}
       <Modal
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}

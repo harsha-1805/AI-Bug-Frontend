@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose, Sparkles } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -487,6 +487,7 @@ export default function Bugs() {
             }}
             onAssign={() => openAssign(previewBug)}
             onDelete={() => setConfirmDelete(previewBug)}
+            onGenerateTestCases={() => handleGenerateTestCases(previewBug)}
             onViewScreenshot={() =>
               setPreviewImage({ url: resolveMediaUrl(previewBug.image_url), title: previewBug.title })
             }
@@ -724,23 +725,46 @@ export default function Bugs() {
  * wrapper above) instead of covering it, so the list stays visible while
  * reviewing a bug, similar to Jira's issue side-panel.
  */
-function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete, onViewScreenshot }) {
+function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete, onViewScreenshot, onGenerateTestCases }) {
+  // Open the bug detail in a dedicated full-screen tab so the user can
+  // review the full bug without losing their place in the bugs list.
+  const openInNewTab = () => {
+    const html = buildBugDetailHtml(bug, projectName(bug.project_id));
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
   return (
     <aside className="sticky top-4 flex w-full max-w-sm shrink-0 flex-col rounded-2xl border border-border bg-white shadow-sm">
+      {/* Header */}
       <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <p className="text-xs text-slate-400">{projectName(bug.project_id)}</p>
           <h3 className="truncate text-base font-semibold text-slate-800">{bug.title}</h3>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close preview"
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          title="Close preview"
-        >
-          <PanelRightClose size={16} />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {/* Open full-screen in new tab */}
+          <button
+            type="button"
+            onClick={openInNewTab}
+            aria-label="Open in new tab"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
+            title="Open full screen in new tab"
+          >
+            <ExternalLink size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close preview"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            title="Close preview"
+          >
+            <PanelRightClose size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -802,6 +826,16 @@ function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete
             <DueDateBadge date={bug.due_date} doneLike={bug.status === "Closed" || bug.status === "Resolved"} />
           </div>
         )}
+
+        {/* AI test cases shortcut */}
+        <button
+          type="button"
+          onClick={onGenerateTestCases}
+          className="flex w-full items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/50 px-3 py-2.5 text-left text-xs font-medium text-primary-700 hover:bg-primary-50"
+        >
+          <FileSpreadsheet size={14} className="shrink-0" />
+          Generate AI test cases for this bug
+        </button>
       </div>
 
       <div className="flex shrink-0 gap-2 border-t border-border px-4 py-3">
@@ -817,4 +851,53 @@ function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete
       </div>
     </aside>
   );
+}
+
+// ── Full-screen bug detail (new tab) ────────────────────────────────────────
+function buildBugDetailHtml(bug, projectName) {
+  const field = (label, val) =>
+    val
+      ? `<div class="field"><p class="label">${label}</p><p class="val">${String(val).replace(/\n/g, "<br>")}</p></div>`
+      : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${bug.title}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;font-size:13px;background:#f8fafc;color:#1e293b;padding:32px;max-width:800px;margin:0 auto}
+  h1{font-size:1.3rem;font-weight:700;margin-bottom:4px}
+  .project{font-size:12px;color:#94a3b8;margin-bottom:16px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+  .badge{padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:600;border:1px solid #e2e8f0;background:#f1f5f9}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+  .field{margin-bottom:20px}
+  .label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;font-weight:600;margin-bottom:4px}
+  .val{font-size:13px;color:#334155;line-height:1.6;white-space:pre-wrap}
+  img{max-width:100%;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:20px}
+</style>
+</head>
+<body>
+<p class="project">${projectName}</p>
+<h1>${bug.title}</h1>
+<div class="badges">
+  <span class="badge">${bug.severity}</span>
+  <span class="badge">${bug.priority}</span>
+  <span class="badge">${bug.status}</span>
+</div>
+${bug.image_url ? `<img src="${bug.image_url}" alt="Screenshot"/>` : ""}
+${field("Description", bug.description)}
+${field("Steps to reproduce", bug.steps_to_reproduce)}
+${field("Expected result", bug.expected_result)}
+${field("Actual result", bug.actual_result)}
+<div class="grid">
+  ${field("Assignee", bug.assignee?.full_name)}
+  ${field("Reported by", bug.reporter?.full_name)}
+</div>
+${field("Module", bug.module)}
+</body>
+</html>`;
 }

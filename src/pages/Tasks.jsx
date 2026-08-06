@@ -13,6 +13,7 @@ import {
   Table2,
   Sparkles,
   UploadCloud,
+  FileSpreadsheet,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
@@ -423,9 +424,18 @@ export default function Tasks() {
         title="Tasks"
         subtitle="A kanban view of everything your team is working on — drag a card to change its status"
         actions={
-          <Button icon={Plus} onClick={openCreate}>
-            New Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              icon={FileSpreadsheet}
+              onClick={() => navigate("/test-cases-library")}
+            >
+              AI Test Cases
+            </Button>
+            <Button icon={Plus} onClick={openCreate}>
+              New Task
+            </Button>
+          </div>
         }
       />
 

@@ -17,6 +17,7 @@ import AuditLog from "../pages/AuditLog.jsx";
 import Settings from "../pages/Settings.jsx";
 import UserManagement from "../pages/UserManagement.jsx";
 import NotFound from "../pages/NotFound.jsx";
+import TestCasesLibrary from "../pages/TestCasesLibrary.jsx";
 
 export default function AppRoutes() {
   return (
@@ -36,6 +37,7 @@ export default function AppRoutes() {
           <Route path="/sprints" element={<Sprints />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
+          <Route path="/test-cases-library" element={<TestCasesLibrary />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/settings" element={<Settings />} />
 

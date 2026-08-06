@@ -15,6 +15,7 @@ import {
   Users,
   ScrollText,
   X,
+  FileSpreadsheet,
 } from "lucide-react";
 import Avatar from "./Avatar.jsx";
 import { useAuth } from "../hooks/useAuth";
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { to: "/sprints", label: "Sprints", icon: Rocket },
   { to: "/reports", label: "Reports", icon: BarChart3, reportsOnly: true },
   { to: "/ai-assistant", label: "AI Assistant", icon: Sparkles },
+  { to: "/test-cases-library", label: "Test Cases", icon: FileSpreadsheet },
   // Audit Log: QA, Lead ("Project Manager") and Admin only — see
   // utils/rbac.js canViewAuditLog, mirroring "audit.view" server-side.
   { to: "/audit-log", label: "Audit Log", icon: ScrollText, auditOnly: true },
