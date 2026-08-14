@@ -21,6 +21,7 @@ import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { downloadCsv } from "../utils/downloadCsv.js";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 
 const TYPE_TONE = {
   Positive: "success",
@@ -209,8 +210,12 @@ export default function TestCasesLibrary() {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
 
-  // Filters
-  const [projectFilter, setProjectFilter] = useState("");
+  // Filters — project comes from the universal Navbar dropdown (shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant, see
+  // context/ProjectFilterContext.jsx) so picking a project there also
+  // scopes this page. Task stays a page-local secondary filter, scoped to
+  // whichever project is currently selected.
+  const { selectedProjectId: projectFilter } = useProjectFilter();
   const [taskFilter, setTaskFilter] = useState("");
 
   // Preview modal
@@ -290,17 +295,6 @@ export default function TestCasesLibrary() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Filter size={15} className="text-slate-400" />
         <Select
-          className="w-52"
-          value={projectFilter}
-          onChange={setProjectFilter}
-          placeholder="All projects"
-          ariaLabel="Filter by project"
-          options={[
-            { value: "", label: "All projects" },
-            ...projects.map((p) => ({ value: p.id, label: p.name })),
-          ]}
-        />
-        <Select
           className="w-56"
           value={taskFilter}
           onChange={setTaskFilter}
@@ -318,10 +312,10 @@ export default function TestCasesLibrary() {
             ...tasks.map((t) => ({ value: t.id, label: t.title })),
           ]}
         />
-        {(projectFilter || taskFilter) && (
+        {taskFilter && (
           <button
             type="button"
-            onClick={() => { setProjectFilter(""); setTaskFilter(""); }}
+            onClick={() => setTaskFilter("")}
             className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
           >
             <X size={13} /> Clear filters

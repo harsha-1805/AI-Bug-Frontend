@@ -13,6 +13,7 @@ import { aiBugService } from "../services/aiBugService";
 import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
+import { subtaskService } from "../services/subtaskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 
@@ -29,10 +30,14 @@ export default function AIBugGenerator() {
   // --- Save-to-task flow: project is required to save a bug, task is
   // optional. Picking a task whose `sprint` is set shows that sprint and
   // carries its id onto the bug automatically (see handleSave below).
+  // Picking a subtask (optional, only enabled once a task is chosen)
+  // carries onto the bug too, alongside its parent task.
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [subtasks, setSubtasks] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [selectedSubtaskId, setSelectedSubtaskId] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -63,6 +68,23 @@ export default function AIBugGenerator() {
         toast.error("Failed to load tasks for that project");
       });
   }, [selectedProjectId]);
+
+  // Reload the subtask dropdown's options whenever the selected task
+  // changes, and reset any subtask chosen under the previous task.
+  useEffect(() => {
+    setSelectedSubtaskId("");
+    if (!selectedTaskId) {
+      setSubtasks([]);
+      return;
+    }
+    subtaskService
+      .listSubtasks({ taskId: Number(selectedTaskId) })
+      .then(setSubtasks)
+      .catch(() => {
+        setSubtasks([]);
+        toast.error("Failed to load subtasks for that task");
+      });
+  }, [selectedTaskId]);
 
   const handleGenerate = async () => {
     if (!image) {
@@ -113,6 +135,7 @@ export default function AIBugGenerator() {
         // too, so it shows up filtered/grouped correctly in Sprints view.
         sprintId: selectedTask?.sprint_id ?? undefined,
         taskId: selectedTaskId ? Number(selectedTaskId) : undefined,
+        subtaskId: selectedSubtaskId ? Number(selectedSubtaskId) : undefined,
         title: bugReport.title,
         severity: bugReport.severity,
         priority: bugReport.priority,
@@ -206,10 +229,13 @@ export default function AIBugGenerator() {
                 onChange={updateBugReport}
                 projects={projects}
                 tasks={tasks}
+                subtasks={subtasks}
                 selectedProjectId={selectedProjectId}
                 selectedTaskId={selectedTaskId}
+                selectedSubtaskId={selectedSubtaskId}
                 onProjectChange={setSelectedProjectId}
                 onTaskChange={setSelectedTaskId}
+                onSubtaskChange={setSelectedSubtaskId}
                 onSave={handleSave}
                 saving={saving}
                 saved={saved}

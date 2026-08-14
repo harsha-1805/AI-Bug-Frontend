@@ -71,10 +71,13 @@ export default function BugReportForm({
   onChange,
   projects = [],
   tasks = [],
+  subtasks = [],
   selectedProjectId = "",
   selectedTaskId = "",
+  selectedSubtaskId = "",
   onProjectChange,
   onTaskChange,
+  onSubtaskChange,
   onSave,
   saving = false,
   saved = false,
@@ -163,6 +166,23 @@ export default function BugReportForm({
                 value: t.id,
                 label: `${t.title}${t.sprint ? ` (Sprint: ${t.sprint.name})` : ""}`,
               }))}
+            />
+          </Field>
+
+          <Field label="Assign to subtask (optional)">
+            <Select
+              value={selectedSubtaskId}
+              onChange={(v) => onSubtaskChange?.(v)}
+              disabled={!selectedTaskId}
+              ariaLabel="Assign to subtask"
+              placeholder={
+                !selectedTaskId
+                  ? "Select a task first"
+                  : subtasks.length
+                  ? "No subtask — save on the task only"
+                  : "This task has no subtasks yet"
+              }
+              options={subtasks.map((st) => ({ value: st.id, label: st.title }))}
             />
           </Field>
         </div>

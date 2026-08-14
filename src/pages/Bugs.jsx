@@ -386,9 +386,14 @@ export default function Bugs() {
         row.task ? (
           <div>
             <p className="max-w-[160px] truncate text-sm text-slate-600">{row.task.title}</p>
-            {row.task.sprint && (
-              <Badge tone="info">{row.task.sprint.name}</Badge>
-            )}
+            <div className="flex flex-wrap items-center gap-1">
+              {row.task.sprint && <Badge tone="info">{row.task.sprint.name}</Badge>}
+              {row.subtask && (
+                <span className="max-w-[160px] truncate text-xs text-slate-400">
+                  ↳ {row.subtask.title}
+                </span>
+              )}
+            </div>
           </div>
         ) : (
           <span className="text-xs text-slate-300">No task</span>
@@ -813,6 +818,13 @@ function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Linked task</p>
             <p className="text-sm text-slate-600">{bug.task.title}</p>
             {bug.task.sprint && <Badge tone="info">{bug.task.sprint.name}</Badge>}
+          </div>
+        )}
+
+        {bug.subtask && (
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Linked subtask</p>
+            <p className="text-sm text-slate-600">{bug.subtask.title}</p>
           </div>
         )}
 

@@ -303,6 +303,12 @@ export default function Tasks() {
     navigate("/ai-assistant");
   };
 
+  // Same handoff, for a SubTask — mirrors handleGenerateTestCases above.
+  const handleGenerateTestCasesForSubtask = (subtask) => {
+    setPendingTestCaseRequest("subtask", subtask.id, subtask.title);
+    navigate("/ai-assistant");
+  };
+
   const projectName = (id) => projects.find((p) => p.id === id)?.name;
 
   // --- Drag and drop handlers ---------------------------------------------
@@ -490,6 +496,8 @@ export default function Tasks() {
           onDelete={setConfirmDelete}
           onChangeStatus={changeStatus}
           onGenerateTestCases={handleGenerateTestCases}
+          onPreviewSubtask={(subtask) => navigate(`/subtasks/${subtask.id}/preview`)}
+          onGenerateTestCasesForSubtask={handleGenerateTestCasesForSubtask}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -832,7 +840,7 @@ export default function Tasks() {
                   key={st.id}
                   className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
                 >
-                  <div className="flex flex-1 items-center gap-2 text-left">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     <button
                       type="button"
                       onClick={() => toggleSubtaskDone(st)}
@@ -880,8 +888,7 @@ export default function Tasks() {
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone={st.status === "Done" ? "success" : "neutral"}>{st.status}</Badge>
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => navigate(`/subtasks/${st.id}/preview`)}
@@ -889,6 +896,14 @@ export default function Tasks() {
                       title="Preview subtask"
                     >
                       <Eye size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateTestCasesForSubtask(st)}
+                      className="rounded p-1 text-slate-400 hover:text-primary-600"
+                      title="Generate test cases"
+                    >
+                      <Sparkles size={14} />
                     </button>
                     <button
                       type="button"

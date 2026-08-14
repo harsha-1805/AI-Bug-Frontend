@@ -12,7 +12,7 @@ export default function Modal({ open, onClose, title, children, footer, classNam
             <X size={18} />
           </button>
         </div>
-        <div className="min-h-0 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
+        <div className="min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">{children}</div>
         {footer && <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border px-4 py-3 [&>button]:w-full sm:flex-row sm:justify-end sm:px-5 sm:py-4 sm:[&>button]:w-auto">{footer}</div>}
       </div>
     </div>

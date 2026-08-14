@@ -345,18 +345,18 @@ export default function Projects() {
                     key={m.user_id}
                     className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
                       <Avatar name={m.full_name} size={24} />
-                      <div>
-                        <p className="text-sm text-slate-700">{m.full_name}</p>
-                        <p className="text-xs text-slate-400">{m.email}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-slate-700">{m.full_name}</p>
+                        <p className="truncate text-xs text-slate-400">{m.email}</p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m.user_id)}
                       disabled={removingMemberId === m.user_id}
-                      className="rounded p-1 text-slate-400 hover:text-red-600 disabled:opacity-40"
+                      className="shrink-0 rounded p-1 text-slate-400 hover:text-red-600 disabled:opacity-40"
                       title="Remove from team"
                     >
                       <X size={14} />

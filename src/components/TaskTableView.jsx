@@ -40,6 +40,8 @@ export default function TaskTableView({
   onDelete,
   onChangeStatus,
   onGenerateTestCases,
+  onPreviewSubtask,
+  onGenerateTestCasesForSubtask,
 }) {
   const [subtasksByTask, setSubtasksByTask] = useState({});
   const [loadingTaskId, setLoadingTaskId] = useState(null);
@@ -247,6 +249,26 @@ export default function TaskTableView({
                     options={STATUS_OPTIONS}
                     className="w-auto min-w-[8.5rem]"
                   />
+                  {onPreviewSubtask && (
+                    <button
+                      type="button"
+                      onClick={() => onPreviewSubtask(st)}
+                      className="rounded p-1 text-slate-400 hover:text-primary-600"
+                      title="Preview subtask"
+                    >
+                      <Eye size={14} />
+                    </button>
+                  )}
+                  {onGenerateTestCasesForSubtask && (
+                    <button
+                      type="button"
+                      onClick={() => onGenerateTestCasesForSubtask(st)}
+                      className="rounded p-1 text-slate-400 hover:text-primary-600"
+                      title="Generate test cases"
+                    >
+                      <Sparkles size={14} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => deleteSubtask(task, st)}

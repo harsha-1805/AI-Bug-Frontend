@@ -27,6 +27,7 @@ import { aiAssistantService } from "../services/aiAssistantService";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { bugService } from "../services/bugService";
+import { subtaskService } from "../services/subtaskService";
 import { useAuth } from "../hooks/useAuth";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { getErrorMessage } from "../utils/apiError.js";
@@ -253,10 +254,18 @@ export default function AIAssistant() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerProjectId, setPickerProjectId] = useState("");
-  const [pickerType, setPickerType] = useState("task");
+  const [pickerType, setPickerType] = useState("task"); // "task" | "bug" | "subtask"
   const [pickerItems, setPickerItems] = useState([]);
+  // For "task"/"bug" this is the final selected entity id. For "subtask"
+  // this is the PARENT TASK id (picked first, to then narrow down to one
+  // of its subtasks) — see pickerSubtaskId below.
   const [pickerItemId, setPickerItemId] = useState("");
   const [pickerLoading, setPickerLoading] = useState(false);
+  // Second-level picker, only used when pickerType === "subtask": the
+  // subtasks belonging to the task chosen in pickerItemId.
+  const [pickerSubtasks, setPickerSubtasks] = useState([]);
+  const [pickerSubtaskId, setPickerSubtaskId] = useState("");
+  const [pickerSubtasksLoading, setPickerSubtasksLoading] = useState(false);
 
   useEffect(() => {
     projectService
@@ -277,19 +286,39 @@ export default function AIAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Loads the first-level picker list: tasks (for "task" AND "subtask" —
+  // subtasks are chosen by first picking their parent task) or bugs.
   useEffect(() => {
     if (!pickerOpen || !pickerProjectId) {
       setPickerItems([]);
       return;
     }
     setPickerItemId("");
+    setPickerSubtaskId("");
+    setPickerSubtasks([]);
     setPickerLoading(true);
     const loader =
-      pickerType === "task"
-        ? taskService.listTasks({ projectId: Number(pickerProjectId) })
-        : bugService.listBugs({ projectId: Number(pickerProjectId), pageSize: 100 }).then((d) => d.items);
+      pickerType === "bug"
+        ? bugService.listBugs({ projectId: Number(pickerProjectId), pageSize: 100 }).then((d) => d.items)
+        : taskService.listTasks({ projectId: Number(pickerProjectId) });
     loader.then(setPickerItems).catch(() => setPickerItems([])).finally(() => setPickerLoading(false));
   }, [pickerOpen, pickerProjectId, pickerType]);
+
+  // Second-level picker: once a parent task is chosen in subtask mode,
+  // load that task's subtasks.
+  useEffect(() => {
+    if (pickerType !== "subtask" || !pickerItemId) {
+      setPickerSubtasks([]);
+      return;
+    }
+    setPickerSubtaskId("");
+    setPickerSubtasksLoading(true);
+    subtaskService
+      .listSubtasks({ taskId: Number(pickerItemId) })
+      .then(setPickerSubtasks)
+      .catch(() => setPickerSubtasks([]))
+      .finally(() => setPickerSubtasksLoading(false));
+  }, [pickerType, pickerItemId]);
 
   const send = async (text) => {
     const trimmed = (text ?? message).trim();
@@ -314,7 +343,7 @@ export default function AIAssistant() {
   };
 
   const generateTestCases = async (entityType, entityId, title) => {
-    const label = entityType === "task" ? "Task" : "Bug";
+    const label = entityType === "task" ? "Task" : entityType === "bug" ? "Bug" : "Subtask";
     setMessages((prev) => [
       ...prev,
       { role: "user", text: `Generate test cases for ${label}: "${title || `#${entityId}`}"` },
@@ -381,6 +410,16 @@ export default function AIAssistant() {
   };
 
   const handlePickerGenerate = () => {
+    if (pickerType === "subtask") {
+      if (!pickerSubtaskId) return;
+      const item = pickerSubtasks.find((i) => String(i.id) === String(pickerSubtaskId));
+      setPickerOpen(false);
+      generateTestCases("subtask", Number(pickerSubtaskId), item?.title);
+      setPickerProjectId("");
+      setPickerItemId("");
+      setPickerSubtaskId("");
+      return;
+    }
     if (!pickerItemId) return;
     const item = pickerItems.find((i) => String(i.id) === String(pickerItemId));
     setPickerOpen(false);
@@ -524,7 +563,11 @@ export default function AIAssistant() {
             <Button variant="secondary" onClick={() => setPickerOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handlePickerGenerate} disabled={!pickerItemId} icon={Wand2}>
+            <Button
+              onClick={handlePickerGenerate}
+              disabled={pickerType === "subtask" ? !pickerSubtaskId : !pickerItemId}
+              icon={Wand2}
+            >
               Generate
             </Button>
           </>
@@ -532,7 +575,7 @@ export default function AIAssistant() {
       >
         <div className="space-y-4">
           <div className="inline-flex rounded-lg border border-border bg-canvas p-0.5">
-            {["task", "bug"].map((t) => (
+            {["task", "bug", "subtask"].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -556,7 +599,9 @@ export default function AIAssistant() {
             />
           </div>
           <div>
-            <label className="label">{pickerType === "task" ? "Task" : "Bug"}</label>
+            <label className="label">
+              {pickerType === "bug" ? "Bug" : pickerType === "subtask" ? "Parent task" : "Task"}
+            </label>
             {pickerLoading ? (
               <Loader label="Loading..." />
             ) : (
@@ -564,17 +609,45 @@ export default function AIAssistant() {
                 value={pickerItemId}
                 onChange={setPickerItemId}
                 disabled={!pickerProjectId}
-                placeholder={pickerProjectId ? `Select a ${pickerType}` : "Select a project first"}
-                ariaLabel={pickerType === "task" ? "Task" : "Bug"}
+                placeholder={
+                  pickerProjectId
+                    ? `Select a ${pickerType === "bug" ? "bug" : "task"}`
+                    : "Select a project first"
+                }
+                ariaLabel={pickerType === "bug" ? "Bug" : "Task"}
                 options={pickerItems.map((i) => ({ value: i.id, label: i.title }))}
               />
             )}
             <p className="mt-1 text-xs text-slate-400">
               {pickerType === "task"
                 ? "Grounded in its description, acceptance criteria, subtasks, and reference screenshots."
-                : "Grounded in its recorded fields and screenshot."}
+                : pickerType === "bug"
+                ? "Grounded in its recorded fields and screenshot."
+                : "Pick the task this subtask belongs to, then choose the subtask below."}
             </p>
           </div>
+
+          {pickerType === "subtask" && pickerItemId && (
+            <div>
+              <label className="label">Subtask</label>
+              {pickerSubtasksLoading ? (
+                <Loader label="Loading..." />
+              ) : (
+                <Select
+                  value={pickerSubtaskId}
+                  onChange={setPickerSubtaskId}
+                  disabled={pickerSubtasks.length === 0}
+                  placeholder={pickerSubtasks.length ? "Select a subtask" : "This task has no subtasks yet"}
+                  ariaLabel="Subtask"
+                  options={pickerSubtasks.map((i) => ({ value: i.id, label: i.title }))}
+                />
+              )}
+              <p className="mt-1 text-xs text-slate-400">
+                Grounded in its own title/description/status plus the parent task&rsquo;s title, description,
+                and acceptance criteria.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </div>
