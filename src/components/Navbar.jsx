@@ -1,10 +1,12 @@
-import { Bell, Settings as SettingsIcon, LogOut, Menu, X, Moon, Sun } from "lucide-react";
+import { Bell, Settings as SettingsIcon, LogOut, Menu, X, Moon, Sun, FolderKanban } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
 import Dropdown from "./Dropdown.jsx";
+import Select from "./Select.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../hooks/useSidebar";
 import { useTheme } from "../context/ThemeContext.jsx";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 
 const TITLES = {
   "/dashboard": "Dashboard",
@@ -26,13 +28,14 @@ export default function Navbar() {
   const { mobileOpen, collapsed, isMobile, toggleSidebar } = useSidebar();
   const menuIsOpen = isMobile ? mobileOpen : !collapsed;
   const { isDark, toggleTheme } = useTheme();
+  const { selectedProjectId, setSelectedProjectId, projects } = useProjectFilter();
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-white px-4 transition-all duration-300 ease-in-out sm:px-6
+      className={`fixed inset-x-0 top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-white px-4 transition-all duration-300 ease-in-out sm:px-6
         ${collapsed ? "md:ml-20" : "md:ml-64"}`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <button
           onClick={toggleSidebar}
           className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
@@ -43,21 +46,27 @@ export default function Navbar() {
           {isMobile && mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
-        <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+        <h2 className="hidden truncate text-lg font-semibold text-slate-800 sm:block">{title}</h2>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Dark / Light theme toggle — excluded from sign-in/sign-up pages which use AuthLayout */}
-        {/* <button
-          onClick={toggleTheme}
-          className="rounded-xl p-2 text-slate-500 hover:bg-slate-50 transition-colors"
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button> */}
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+        {/* Universal project filter — selecting a project here scopes
+            Tasks, Sprints, Bugs, Dashboard, Reports, and AI Assistant to
+            that project until "All Projects" is picked again. Resets to
+            "All Projects" on every fresh load/login (not persisted). */}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <FolderKanban size={16} className="hidden shrink-0 text-slate-400 sm:block" />
+          <Select
+            className="w-36 sm:w-52"
+            value={selectedProjectId}
+            onChange={setSelectedProjectId}
+            placeholder="All Projects"
+            ariaLabel="Universal project filter"
+            options={[{ value: "", label: "All Projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+          />
+        </div>
 
-        <button className="relative rounded-xl p-2 text-slate-500 hover:bg-slate-50">
+        <button className="relative shrink-0 rounded-xl p-2 text-slate-500 hover:bg-slate-50">
           <Bell size={18} />
           <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary-600" />
         </button>

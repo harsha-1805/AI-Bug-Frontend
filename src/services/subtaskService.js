@@ -10,6 +10,11 @@ export const subtaskService = {
     return data; // array of subtasks
   },
 
+  async getSubtask(subtaskId) {
+    const { data } = await axiosInstance.get(`${SUBTASKS_BASE}/${subtaskId}`);
+    return data;
+  },
+
   async createSubtask({ taskId, title, description, status, dueDate, assignedTo }) {
     const { data } = await axiosInstance.post(SUBTASKS_BASE, {
       task_id: taskId,

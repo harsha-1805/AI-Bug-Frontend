@@ -18,8 +18,8 @@ import Button from "../components/Button.jsx";
 import Loader from "../components/Loader.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { reportsService } from "../services/reportsService";
-import { projectService } from "../services/projectService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 
 const EXPORT_TYPES = [
   { value: "bugs", label: "Bugs" },
@@ -28,8 +28,10 @@ const EXPORT_TYPES = [
 ];
 
 export default function Reports() {
-  const [projects, setProjects] = useState([]);
-  const [projectId, setProjectId] = useState("");
+  // Universal project filter (Navbar dropdown) — "" = all projects. Shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
+  // see context/ProjectFilterContext.jsx.
+  const { selectedProjectId: projectId } = useProjectFilter();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -41,13 +43,6 @@ export default function Reports() {
 
   const [exportType, setExportType] = useState("bugs");
   const [exporting, setExporting] = useState(false);
-
-  useEffect(() => {
-    projectService
-      .listProjects({ pageSize: 100 })
-      .then((data) => setProjects(data.items))
-      .catch(() => {});
-  }, []);
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -95,18 +90,10 @@ export default function Reports() {
     <div>
       <PageHeader title="Reports" subtitle="Deep analytics across bugs, sprints, and your team's workload" />
 
-      {/* Filters */}
+      {/* Filters — project scope now comes from the Navbar's universal
+          filter (see components/Navbar.jsx); date range and export
+          type stay local to this page. */}
       <div className="card mb-6 flex flex-wrap items-end gap-3 p-4">
-        <div className="w-56">
-          <label className="label">Project</label>
-          <Select
-            value={projectId}
-            onChange={setProjectId}
-            placeholder="All projects"
-            ariaLabel="Filter by project"
-            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
-          />
-        </div>
         <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
 

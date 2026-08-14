@@ -28,6 +28,7 @@ import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { bugService } from "../services/bugService";
 import { useAuth } from "../hooks/useAuth";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 import { getErrorMessage } from "../utils/apiError.js";
 import { downloadCsv } from "../utils/downloadCsv.js";
 import { takePendingTestCaseRequest } from "../utils/aiHandoff.js";
@@ -241,7 +242,13 @@ export default function AIAssistant() {
   const [sending, setSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [projects, setProjects] = useState([]);
-  const [projectId, setProjectId] = useState("");
+  // Universal project filter (Navbar dropdown) — "" = all projects. Shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
+  // see context/ProjectFilterContext.jsx. `projects` here stays local
+  // (still needed for the save-test-case and generate-test-cases pickers
+  // below, which are separate "which project" choices, not this view
+  // filter).
+  const { selectedProjectId: projectId } = useProjectFilter();
   const scrollRef = useRef(null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -391,20 +398,16 @@ export default function AIAssistant() {
     <div>
       <PageHeader
         title="AI Assistant"
-        subtitle="Ask questions about your bugs, tasks, and sprints — or generate test cases from one"
+        subtitle={
+          projectId
+            ? `Scoped to ${projects.find((p) => String(p.id) === String(projectId))?.name || "selected project"} (change from the project filter in the top bar) — ask questions or generate test cases`
+            : "Ask questions about your bugs, tasks, and sprints — or generate test cases from one"
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" icon={Wand2} onClick={() => setPickerOpen(true)}>
               Generate Test Cases
             </Button>
-            <Select
-              className="w-56"
-              value={projectId}
-              onChange={setProjectId}
-              placeholder="All projects"
-              ariaLabel="Scope to project"
-              options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
-            />
           </div>
         }
       />

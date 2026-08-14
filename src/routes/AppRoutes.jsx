@@ -10,6 +10,8 @@ import Projects from "../pages/Projects.jsx";
 import AIBugGenerator from "../pages/AIBugGenerator.jsx";
 import Bugs from "../pages/Bugs.jsx";
 import Tasks from "../pages/Tasks.jsx";
+import TaskPreviewPage from "../pages/TaskPreviewPage.jsx";
+import SubtaskPreviewPage from "../pages/SubtaskPreviewPage.jsx";
 import Sprints from "../pages/Sprints.jsx";
 import Reports from "../pages/Reports.jsx";
 import AIAssistant from "../pages/AIAssistant.jsx";
@@ -34,6 +36,11 @@ export default function AppRoutes() {
           <Route path="/ai-bug-generator" element={<AIBugGenerator />} />
           <Route path="/bugs" element={<Bugs />} />
           <Route path="/tasks" element={<Tasks />} />
+          {/* Read-only preview pages — reached only via the Eye icon on a
+              task/subtask (kanban card or table row). Not linked from the
+              Sidebar on purpose. */}
+          <Route path="/tasks/:taskId/preview" element={<TaskPreviewPage />} />
+          <Route path="/subtasks/:subtaskId/preview" element={<SubtaskPreviewPage />} />
           <Route path="/sprints" element={<Sprints />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />

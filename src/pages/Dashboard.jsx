@@ -16,11 +16,10 @@ import {
 import PageHeader from "../components/PageHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
 import ChartCard from "../components/ChartCard.jsx";
-import Select from "../components/Select.jsx";
 import Loader from "../components/Loader.jsx";
 import { dashboardService } from "../services/dashboardService";
-import { projectService } from "../services/projectService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 
 const STATUS_COLORS = {
   Open: "#f59e0b",
@@ -32,15 +31,10 @@ const STATUS_COLORS = {
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [projectId, setProjectId] = useState("");
-
-  useEffect(() => {
-    projectService
-      .listProjects({ pageSize: 100 })
-      .then((data) => setProjects(data.items))
-      .catch(() => {});
-  }, []);
+  // Universal project filter (Navbar dropdown) — "" = all projects. Shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
+  // see context/ProjectFilterContext.jsx.
+  const { selectedProjectId: projectId } = useProjectFilter();
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -89,16 +83,6 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         subtitle="An overview of bugs, tasks, and sprints across your projects"
-        actions={
-          <Select
-            className="w-56"
-            value={projectId}
-            onChange={setProjectId}
-            placeholder="All projects"
-            ariaLabel="Filter by project"
-            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
-          />
-        }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">

@@ -17,6 +17,7 @@ import { sprintService } from "../services/sprintService";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 
 const TASK_STATUS_TONE = { "To Do": "neutral", "In Progress": "medium", Done: "success" };
 
@@ -31,7 +32,10 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function Sprints() {
   const [projects, setProjects] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState("");
+  // Universal project filter (Navbar dropdown) — "" = all projects. Shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
+  // see context/ProjectFilterContext.jsx.
+  const { selectedProjectId } = useProjectFilter();
   const [loading, setLoading] = useState(true);
   const [sprints, setSprints] = useState([]);
 
@@ -264,18 +268,9 @@ export default function Sprints() {
         }
       />
 
-      <div className="mb-5 flex items-center gap-3">
-        <label className="text-sm text-slate-500">Project:</label>
-        <Select
-          className="max-w-xs"
-          value={selectedProjectId}
-          onChange={setSelectedProjectId}
-          placeholder="All projects"
-          ariaLabel="Project"
-          options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
-        />
-
-      </div>
+      {/* Project filter now lives in the Navbar (universal, applies across
+          Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant) — see
+          components/Navbar.jsx. */}
 
       {projects.length === 0 ? (
         <EmptyState

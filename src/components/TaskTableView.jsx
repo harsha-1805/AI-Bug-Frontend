@@ -1,6 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { MoreVertical, Pencil, Trash2, Plus, X, Sparkles } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Plus, X, Sparkles, Eye } from "lucide-react";
 import CollapsibleTable from "./CollapsibleTable.jsx";
 import DueDateBadge from "./DueDateBadge.jsx";
 import Select from "./Select.jsx";
@@ -36,6 +36,7 @@ export default function TaskTableView({
   projects,
   showProjectColumn,
   onEdit,
+  onPreview,
   onDelete,
   onChangeStatus,
   onGenerateTestCases,
@@ -106,10 +107,22 @@ export default function TaskTableView({
       key: "title",
       header: "Task",
       render: (task) => (
-        <div>
-          <p className="font-medium text-slate-800">{task.title}</p>
-          {showProjectColumn && (
-            <p className="mt-0.5 text-xs text-primary-600">{projectName(task.project_id)}</p>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-slate-800">{task.title}</p>
+            {showProjectColumn && (
+              <p className="mt-0.5 text-xs text-primary-600">{projectName(task.project_id)}</p>
+            )}
+          </div>
+          {onPreview && (
+            <button
+              type="button"
+              onClick={() => onPreview(task)}
+              title="Preview"
+              className="shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-primary-600"
+            >
+              <Eye size={15} />
+            </button>
           )}
         </div>
       ),
@@ -167,6 +180,7 @@ export default function TaskTableView({
         <Dropdown
           label={<MoreVertical size={16} />}
           items={[
+            ...(onPreview ? [{ label: "Preview", icon: Eye, onClick: () => onPreview(task) }] : []),
             { label: "Edit", icon: Pencil, onClick: () => onEdit(task) },
             { label: "Generate test cases", icon: Sparkles, onClick: () => onGenerateTestCases?.(task) },
             { label: "Delete", icon: Trash2, onClick: () => onDelete(task) },

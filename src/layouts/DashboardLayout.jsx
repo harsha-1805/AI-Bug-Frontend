@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar.jsx";
 import AIAssistantWidget from "../components/AIAssistantWidget.jsx";
 import { SidebarProvider } from "../context/SidebarContext.jsx";
 import { ThemeProvider } from "../context/ThemeContext.jsx";
+import { ProjectFilterProvider } from "../context/ProjectFilterContext.jsx";
 import { useSidebar } from "../hooks/useSidebar";
 
 function DashboardShell() {
@@ -27,9 +28,11 @@ function DashboardShell() {
 export default function DashboardLayout() {
   return (
     <ThemeProvider>
-      <SidebarProvider>
-        <DashboardShell />
-      </SidebarProvider>
+      <ProjectFilterProvider>
+        <SidebarProvider>
+          <DashboardShell />
+        </SidebarProvider>
+      </ProjectFilterProvider>
     </ThemeProvider>
   );
 }

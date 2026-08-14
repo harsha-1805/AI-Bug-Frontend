@@ -13,6 +13,7 @@ export const ALLOWED_EMAIL_DOMAINS = [
   "yahoo.com",
   "hotmail.com",
   "ebit.com",
+  "efficientbrains.com"
 ];
 
 export function isEmailDomainAllowed(email) {

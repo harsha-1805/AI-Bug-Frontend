@@ -19,6 +19,7 @@ import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useAuth } from "../hooks/useAuth";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
@@ -60,7 +61,10 @@ export default function Bugs() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
-  const [projectFilter, setProjectFilter] = useState("");
+  // Universal project filter (Navbar dropdown) — "" = all projects. Shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
+  // see context/ProjectFilterContext.jsx.
+  const { selectedProjectId: projectFilter } = useProjectFilter();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingBug, setEditingBug] = useState(null);
@@ -429,14 +433,6 @@ export default function Bugs() {
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search bugs..."
           className="max-w-sm"
-        />
-        <Select
-          className="w-auto min-w-[9.5rem]"
-          value={projectFilter}
-          onChange={setProjectFilter}
-          placeholder="All projects"
-          ariaLabel="Filter by project"
-          options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
         />
         <Select
           className="w-auto min-w-[9.5rem]"
@@ -888,7 +884,7 @@ function buildBugDetailHtml(bug, projectName) {
   <span class="badge">${bug.priority}</span>
   <span class="badge">${bug.status}</span>
 </div>
-${bug.image_url ? `<img src="${bug.image_url}" alt="Screenshot"/>` : ""}
+${bug.image_url ? `<img src="http://localhost:8003${bug.image_url}" alt="Screenshot"/>` : ""}
 ${field("Description", bug.description)}
 ${field("Steps to reproduce", bug.steps_to_reproduce)}
 ${field("Expected result", bug.expected_result)}

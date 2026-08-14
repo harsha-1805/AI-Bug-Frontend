@@ -14,6 +14,7 @@ import {
   Sparkles,
   UploadCloud,
   FileSpreadsheet,
+  Eye,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
@@ -32,6 +33,7 @@ import { sprintService } from "../services/sprintService";
 import { subtaskService } from "../services/subtaskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useAuth } from "../hooks/useAuth";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
@@ -76,7 +78,10 @@ export default function Tasks() {
   // form — a task can only be assigned to someone on that project's team
   // (or Admin/Lead), see app/services/project_access.py on the backend.
   const [formMembers, setFormMembers] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState(""); // "" = all projects
+  // Universal project filter (Navbar dropdown) — "" = all projects. Shared
+  // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context
+  // instead of local page state, see context/ProjectFilterContext.jsx.
+  const { selectedProjectId } = useProjectFilter();
 
   // "kanban" (drag-and-drop board) or "table" (Jira-backlog-style list
   // with collapsible subtask rows) — same data and same status-change/
@@ -439,18 +444,10 @@ export default function Tasks() {
         }
       />
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-500">Project:</label>
-          <Select
-            className="max-w-xs"
-            value={selectedProjectId}
-            onChange={setSelectedProjectId}
-            placeholder="All projects"
-            ariaLabel="Filter by project"
-            options={[{ value: "", label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
-          />
-        </div>
+      <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
+        {/* Project filter now lives in the Navbar (universal, applies
+            across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant) —
+            see components/Navbar.jsx. */}
 
         {/* View toggle — kanban (drag-and-drop) vs table (collapsible list) */}
         <div className="inline-flex rounded-lg border border-border bg-white p-0.5">
@@ -489,6 +486,7 @@ export default function Tasks() {
           projects={projects}
           showProjectColumn={!selectedProjectId}
           onEdit={openEdit}
+          onPreview={(task) => navigate(`/tasks/${task.id}/preview`)}
           onDelete={setConfirmDelete}
           onChangeStatus={changeStatus}
           onGenerateTestCases={handleGenerateTestCases}
@@ -541,6 +539,14 @@ export default function Tasks() {
                           <div className="flex shrink-0 items-center gap-0.5">
                             <button
                               type="button"
+                              title="Preview"
+                              onClick={() => navigate(`/tasks/${task.id}/preview`)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              type="button"
                               title="Subtasks"
                               onClick={() => openSubtasks(task)}
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
@@ -550,6 +556,7 @@ export default function Tasks() {
                             <Dropdown
                               label={<MoreVertical size={14} />}
                               items={[
+                                { label: "Preview", icon: Eye, onClick: () => navigate(`/tasks/${task.id}/preview`) },
                                 { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
                                 { label: "Generate test cases", icon: Sparkles, onClick: () => handleGenerateTestCases(task) },
                                 ...COLUMNS.filter((c) => c.key !== task.status).map((c) => ({
@@ -875,6 +882,14 @@ export default function Tasks() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge tone={st.status === "Done" ? "success" : "neutral"}>{st.status}</Badge>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/subtasks/${st.id}/preview`)}
+                      className="rounded p-1 text-slate-400 hover:text-primary-600"
+                      title="Preview subtask"
+                    >
+                      <Eye size={14} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => deleteSubtask(st)}
