@@ -7,6 +7,9 @@ import {
   Clock3,
   Rocket,
   Sparkles,
+  Activity,
+  Layers3,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -38,12 +41,65 @@ const STATUS_COLORS = {
   Closed: "#94a3b8",
 };
 
+/* =========================================================
+   WIDGET COLOR THEMES
+========================================================= */
+
+const WIDGET_COLORS = {
+  bug: {
+    border: "border-amber-200",
+    header: "bg-gradient-to-r from-amber-50 to-white",
+    icon: "bg-amber-100 text-amber-600",
+    accent: "bg-amber-500",
+  },
+
+  ai: {
+    border: "border-violet-200",
+    header: "bg-gradient-to-r from-violet-50 to-white",
+    icon: "bg-violet-100 text-violet-600",
+    accent: "bg-violet-500",
+  },
+
+  activity: {
+    border: "border-sky-200",
+    header: "bg-gradient-to-r from-sky-50 to-white",
+    icon: "bg-sky-100 text-sky-600",
+    accent: "bg-sky-500",
+  },
+
+  modules: {
+    border: "border-rose-200",
+    header: "bg-gradient-to-r from-rose-50 to-white",
+    icon: "bg-rose-100 text-rose-600",
+    accent: "bg-rose-500",
+  },
+
+  trend: {
+    border: "border-emerald-200",
+    header: "bg-gradient-to-r from-emerald-50 to-white",
+    icon: "bg-emerald-100 text-emerald-600",
+    accent: "bg-emerald-500",
+  },
+};
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
 
+  /*
+   * Universal project filter.
+   * "" means all projects.
+   */
   const { selectedProjectId: projectId } =
     useProjectFilter();
+
+  /* =========================================================
+     LOAD DASHBOARD
+  ========================================================== */
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -74,7 +130,7 @@ export default function Dashboard() {
   }, [loadSummary]);
 
   /* =========================================================
-     LOADING
+     LOADING STATE
   ========================================================== */
 
   if (loading && !summary) {
@@ -89,8 +145,10 @@ export default function Dashboard() {
           className="
             card
             mt-4
-            flex min-h-[320px]
-            items-center justify-center
+            flex
+            min-h-[320px]
+            items-center
+            justify-center
             sm:mt-6
           "
         >
@@ -101,6 +159,10 @@ export default function Dashboard() {
   }
 
   if (!summary) return null;
+
+  /* =========================================================
+     SUMMARY DATA
+  ========================================================== */
 
   const {
     stat_cards: stats,
@@ -116,6 +178,10 @@ export default function Dashboard() {
       (sum, item) => sum + item.count,
       0
     );
+
+  /* =========================================================
+     STAT CARDS
+  ========================================================== */
 
   const statCards = [
     {
@@ -155,10 +221,14 @@ export default function Dashboard() {
     },
   ];
 
+  /* =========================================================
+     RENDER
+  ========================================================== */
+
   return (
     <div className="min-w-0 w-full">
       {/* =======================================================
-          HEADER
+          PAGE HEADER
       ======================================================== */}
 
       <PageHeader
@@ -172,23 +242,23 @@ export default function Dashboard() {
           Mobile  -> 1
           Small   -> 2
           Medium  -> 3
-          Large   -> 5
+          XL      -> 5
       ======================================================== */}
 
       <div
         className="
           grid
+          min-w-0
           grid-cols-1
           gap-3
           sm:grid-cols-2
           md:grid-cols-3
-          lg:grid-cols-3
           xl:grid-cols-5
           sm:gap-4
         "
       >
         {statCards.map((stat) => (
-          <StatCard
+          <ColorfulStatCard
             key={stat.key}
             icon={stat.icon}
             iconTone={stat.tone}
@@ -201,14 +271,13 @@ export default function Dashboard() {
       {/* =======================================================
           TOP THREE WIDGETS
 
-          These widgets KEEP THE SAME HEIGHT.
+          Mobile  -> 1
+          Tablet  -> 2
+          Desktop -> 3
 
-          Mobile -> 1 column
-          Tablet -> 2 columns
-          Desktop -> 3 columns
-
-          The CONTENT scrolls.
-          The HEADER stays visible.
+          Fixed height: 320px
+          Header fixed
+          Content scrollable
       ======================================================== */}
 
       <div
@@ -228,12 +297,14 @@ export default function Dashboard() {
 
         <FixedWidget
           title="Bug Status"
-          action={null}
+          color="bug"
+          icon={<Bug size={16} />}
         >
           {totalBugs === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              No bugs reported yet.
-            </p>
+            <EmptyWidget
+              title="No bugs reported yet."
+              description="Bug status data will appear here when bugs are created."
+            />
           ) : (
             <div
               className="
@@ -247,14 +318,16 @@ export default function Dashboard() {
                 lg:items-center
               "
             >
-              {/* PIE */}
+              {/* Pie chart */}
 
               <div
                 className="
                   relative
-                  h-36 w-36
+                  h-36
+                  w-36
                   shrink-0
-                  sm:h-40 sm:w-40
+                  sm:h-40
+                  sm:w-40
                 "
               >
                 <ResponsiveContainer
@@ -290,7 +363,8 @@ export default function Dashboard() {
                 <div
                   className="
                     pointer-events-none
-                    absolute inset-0
+                    absolute
+                    inset-0
                     flex
                     flex-col
                     items-center
@@ -318,7 +392,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* STATUS LIST */}
+              {/* Status list */}
 
               <ul
                 className="
@@ -350,7 +424,8 @@ export default function Dashboard() {
                           px-2
                           py-1.5
                           text-sm
-                          hover:bg-slate-50
+                          transition-colors
+                          hover:bg-amber-50
                         "
                       >
                         <span
@@ -363,7 +438,8 @@ export default function Dashboard() {
                         >
                           <span
                             className="
-                              h-2 w-2
+                              h-2
+                              w-2
                               shrink-0
                               rounded-full
                             "
@@ -393,8 +469,14 @@ export default function Dashboard() {
                             text-slate-700
                           "
                         >
-                          {entry.count}{" "}
-                          <span className="text-slate-400">
+                          {entry.count}
+
+                          <span
+                            className="
+                              ml-1
+                              text-slate-400
+                            "
+                          >
                             ({percentage}%)
                           </span>
                         </span>
@@ -413,17 +495,14 @@ export default function Dashboard() {
 
         <FixedWidget
           title="AI Insights"
-          action={
-            <Sparkles
-              size={16}
-              className="text-primary-500"
-            />
-          }
+          color="ai"
+          icon={<Sparkles size={16} />}
         >
           {ai_insights.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              No AI insights available.
-            </p>
+            <EmptyWidget
+              title="No AI insights available."
+              description="AI insights will appear when dashboard data is available."
+            />
           ) : (
             <ul className="space-y-3">
               {ai_insights.map(
@@ -431,44 +510,74 @@ export default function Dashboard() {
                   <li
                     key={index}
                     className="
+                      group
                       min-w-0
                       rounded-xl
                       border
-                      border-primary-100
-                      bg-primary-50/60
+                      border-violet-100
+                      bg-gradient-to-br
+                      from-violet-50
+                      via-white
+                      to-fuchsia-50
                       px-3
-                      py-2.5
-                      transition-colors
-                      hover:bg-primary-50
+                      py-3
+                      shadow-sm
+                      transition-all
+                      duration-200
+                      hover:-translate-y-0.5
+                      hover:border-violet-200
+                      hover:shadow-md
                     "
                   >
-                    <p
-                      className="
-                        break-words
-                        whitespace-normal
-                        text-sm
-                        font-medium
-                        leading-5
-                        text-slate-700
-                      "
-                    >
-                      {insight.text}
-                    </p>
-
-                    {insight.meta && (
-                      <p
+                    <div className="flex min-w-0 gap-3">
+                      <div
                         className="
-                          mt-1
-                          break-words
-                          whitespace-normal
-                          text-xs
-                          leading-5
-                          text-slate-500
+                          flex
+                          h-8
+                          w-8
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          bg-violet-100
+                          text-violet-600
                         "
                       >
-                        {insight.meta}
-                      </p>
-                    )}
+                        <Sparkles size={15} />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="
+                            break-words
+                            whitespace-normal
+                            text-sm
+                            font-medium
+                            leading-5
+                            text-slate-700
+                            transition-colors
+                            group-hover:text-violet-700
+                          "
+                        >
+                          {insight.text}
+                        </p>
+
+                        {insight.meta && (
+                          <p
+                            className="
+                              mt-1
+                              break-words
+                              whitespace-normal
+                              text-xs
+                              leading-5
+                              text-slate-500
+                            "
+                          >
+                            {insight.meta}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </li>
                 )
               )}
@@ -482,16 +591,19 @@ export default function Dashboard() {
 
         <FixedWidget
           title="Recent Activity"
+          color="activity"
+          icon={<Activity size={16} />}
         >
           {recent_activity.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              No activity yet.
-            </p>
+            <EmptyWidget
+              title="No activity yet."
+              description="Recent project activity will appear here."
+            />
           ) : (
             <ul
               className="
                 min-w-0
-                space-y-4
+                space-y-2
               "
             >
               {recent_activity.map(
@@ -499,44 +611,69 @@ export default function Dashboard() {
                   <li
                     key={item.id}
                     className="
+                      group
                       min-w-0
-                      border-b
-                      border-slate-100
-                      pb-4
-                      last:border-0
-                      last:pb-0
+                      rounded-lg
+                      border
+                      border-transparent
+                      p-2.5
+                      transition-all
+                      duration-200
+                      hover:border-sky-100
+                      hover:bg-sky-50/50
                     "
                   >
-                    {/* Activity text */}
-
-                    <p
+                    <div
                       className="
+                        flex
                         min-w-0
-                        break-words
-                        whitespace-normal
-                        text-sm
-                        leading-5
-                        text-slate-600
+                        gap-2.5
                       "
                     >
-                      {item.description}
-                    </p>
+                      <span
+                        className="
+                          mt-1.5
+                          h-2
+                          w-2
+                          shrink-0
+                          rounded-full
+                          bg-sky-400
+                          ring-4
+                          ring-sky-50
+                        "
+                      />
 
-                    {/* Date */}
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="
+                            min-w-0
+                            break-words
+                            whitespace-normal
+                            text-sm
+                            leading-5
+                            text-slate-600
+                            transition-colors
+                            group-hover:text-sky-700
+                          "
+                        >
+                          {item.description}
+                        </p>
 
-                    <p
-                      className="
-                        mt-1.5
-                        break-words
-                        text-xs
-                        leading-4
-                        text-slate-400
-                      "
-                    >
-                      {new Date(
-                        item.created_at
-                      ).toLocaleString()}
-                    </p>
+                        <p
+                          className="
+                            mt-1.5
+                            break-words
+                            text-xs
+                            leading-4
+                            text-slate-400
+                          "
+                        >
+                          {new Date(
+                            item.created_at
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
                   </li>
                 )
               )}
@@ -547,8 +684,8 @@ export default function Dashboard() {
 
       {/* =======================================================
           BOTTOM WIDGETS
-
-          Mobile -> 1
+          
+          Mobile  -> 1
           Desktop -> 2
       ======================================================== */}
 
@@ -566,16 +703,21 @@ export default function Dashboard() {
             TOP BUGGY MODULES
         ====================================================== */}
 
-        <ChartCard title="Top Buggy Modules">
+        <ColorfulChartCard
+          title="Top Buggy Modules"
+          color="modules"
+          icon={<Layers3 size={16} />}
+        >
           {top_buggy_modules.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              No module data yet.
-            </p>
+            <EmptyWidget
+              title="No module data yet."
+              description="Module statistics will appear here."
+            />
           ) : (
             <div
               className="
-                max-h-[320px]
                 min-w-0
+                max-h-[320px]
                 space-y-3
                 overflow-y-auto
                 pr-1
@@ -597,12 +739,19 @@ export default function Dashboard() {
                   return (
                     <div
                       key={mod.module}
-                      className="min-w-0"
+                      className="
+                        min-w-0
+                        rounded-lg
+                        p-2
+                        transition-colors
+                        hover:bg-rose-50/50
+                      "
                     >
                       <div
                         className="
                           mb-1
                           flex
+                          min-w-0
                           items-start
                           justify-between
                           gap-3
@@ -622,8 +771,12 @@ export default function Dashboard() {
                         <span
                           className="
                             shrink-0
+                            rounded-md
+                            bg-rose-50
+                            px-2
+                            py-0.5
                             font-medium
-                            text-slate-700
+                            text-rose-600
                           "
                         >
                           {mod.count}
@@ -636,14 +789,18 @@ export default function Dashboard() {
                           w-full
                           overflow-hidden
                           rounded-full
-                          bg-slate-100
+                          bg-rose-50
                         "
                       >
                         <div
                           className="
                             h-full
                             rounded-full
-                            bg-primary-500
+                            bg-gradient-to-r
+                            from-rose-500
+                            to-pink-500
+                            transition-all
+                            duration-500
                           "
                           style={{
                             width: `${pct}%`,
@@ -656,132 +813,261 @@ export default function Dashboard() {
               )}
             </div>
           )}
-        </ChartCard>
+        </ColorfulChartCard>
 
         {/* =====================================================
             BUG TREND
         ====================================================== */}
 
-        <ChartCard title="Bug Trend (30 days)">
-          <div
-            className="
-              h-[220px]
-              w-full
-              min-w-0
-              sm:h-[230px]
-            "
-          >
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
+        <ColorfulChartCard
+          title="Bug Trend (30 days)"
+          color="trend"
+          icon={<TrendingUp size={16} />}
+        >
+          {bug_trend.length === 0 ? (
+            <EmptyWidget
+              title="No trend data yet."
+              description="Bug trend information will appear here."
+            />
+          ) : (
+            <div
+              className="
+                h-[220px]
+                w-full
+                min-w-0
+                sm:h-[230px]
+              "
             >
-              <LineChart
-                data={bug_trend}
-                margin={{
-                  left: -20,
-                  right: 5,
-                }}
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
               >
-                <CartesianGrid
-                  vertical={false}
-                  stroke="#eef0f4"
-                />
-
-                <XAxis
-                  dataKey="date"
-                  tick={{
-                    fontSize: 11,
-                    fill: "#94a3b8",
+                <LineChart
+                  data={bug_trend}
+                  margin={{
+                    left: -20,
+                    right: 5,
                   }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(d) =>
-                    d.slice(5)
-                  }
-                  interval={Math.max(
-                    0,
-                    Math.floor(
-                      bug_trend.length / 6
-                    )
-                  )}
-                />
+                >
+                  <CartesianGrid
+                    vertical={false}
+                    stroke="#eef0f4"
+                  />
 
-                <YAxis
-                  tick={{
-                    fontSize: 12,
-                    fill: "#94a3b8",
-                  }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                  width={30}
-                />
+                  <XAxis
+                    dataKey="date"
+                    tick={{
+                      fontSize: 11,
+                      fill: "#94a3b8",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(d) =>
+                      d.slice(5)
+                    }
+                    interval={Math.max(
+                      0,
+                      Math.floor(
+                        bug_trend.length / 6
+                      )
+                    )}
+                  />
 
-                <Tooltip />
+                  <YAxis
+                    tick={{
+                      fontSize: 12,
+                      fill: "#94a3b8",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                    width={30}
+                  />
 
-                <Line
-                  type="monotone"
-                  dataKey="created"
-                  stroke="#6366f1"
-                  strokeWidth={2}
-                  dot={false}
-                  name="Created"
-                />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "10px",
+                      border:
+                        "1px solid #e2e8f0",
+                      boxShadow:
+                        "0 4px 12px rgba(15, 23, 42, 0.08)",
+                    }}
+                  />
 
-                <Line
-                  type="monotone"
-                  dataKey="resolved"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={false}
-                  name="Resolved"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
+                  <Line
+                    type="monotone"
+                    dataKey="created"
+                    stroke="#6366f1"
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    name="Created"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="resolved"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    name="Resolved"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </ColorfulChartCard>
       </div>
     </div>
   );
 }
 
 /* =========================================================
-   FIXED WIDGET
+   COLORFUL STAT CARD
+========================================================= */
 
-   IMPORTANT:
-   Header does NOT scroll.
-   Only content scrolls.
+function ColorfulStatCard({
+  icon: Icon,
+  iconTone,
+  label,
+  value,
+}) {
+  return (
+    <div
+      className="
+        group
+        min-w-0
+        overflow-hidden
+        rounded-xl
+        border
+        border-slate-200
+        bg-white
+        p-4
+        shadow-sm
+        transition-all
+        duration-200
+        hover:-translate-y-0.5
+        hover:border-slate-300
+        hover:shadow-md
+        sm:p-5
+      "
+    >
+      <div
+        className="
+          flex
+          min-w-0
+          items-start
+          gap-3
+        "
+      >
+        <div
+          className={`
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            transition-transform
+            duration-200
+            group-hover:scale-105
+            ${iconTone}
+          `}
+        >
+          <Icon size={19} />
+        </div>
 
-   All three widgets have the same height.
+        <div className="min-w-0 flex-1">
+          <p
+            className="
+              break-words
+              text-sm
+              leading-5
+              text-slate-500
+            "
+          >
+            {label}
+          </p>
+
+          <p
+            className="
+              mt-2
+              text-2xl
+              font-bold
+              leading-none
+              text-slate-800
+              sm:text-3xl
+            "
+          >
+            {value ?? 0}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   FIXED COLORFUL WIDGET
+
+   - Fixed height: 320px
+   - Header does not scroll
+   - Content scrolls
+   - Responsive width
 ========================================================= */
 
 function FixedWidget({
   title,
   children,
   action,
+  icon,
+  color = "bug",
 }) {
+  const styles =
+    WIDGET_COLORS[color] ||
+    WIDGET_COLORS.bug;
+
   return (
     <div
-      className="
+      className={`
+        group
+        relative
         flex
         h-[320px]
-        min-w-0
         min-h-0
+        min-w-0
         flex-col
         overflow-hidden
         rounded-xl
         border
-        border-slate-200
         bg-white
         shadow-sm
-      "
+        transition-all
+        duration-200
+        hover:-translate-y-0.5
+        hover:shadow-md
+        ${styles.border}
+      `}
     >
-      {/* =====================================================
-          FIXED HEADER
-      ====================================================== */}
+      {/* Top color accent */}
 
       <div
-        className="
+        className={`
+          absolute
+          left-0
+          right-0
+          top-0
+          h-1
+          ${styles.accent}
+        `}
+      />
+
+      {/* Header */}
+
+      <div
+        className={`
           flex
           h-[58px]
           shrink-0
@@ -791,21 +1077,49 @@ function FixedWidget({
           border-b
           border-slate-100
           px-4
+          pt-1
           sm:px-5
-        "
+          ${styles.header}
+        `}
       >
-        <h2
+        <div
           className="
+            flex
             min-w-0
-            truncate
-            text-sm
-            font-semibold
-            text-slate-800
-            sm:text-[15px]
+            items-center
+            gap-2.5
           "
         >
-          {title}
-        </h2>
+          {icon && (
+            <div
+              className={`
+                flex
+                h-8
+                w-8
+                shrink-0
+                items-center
+                justify-center
+                rounded-lg
+                ${styles.icon}
+              `}
+            >
+              {icon}
+            </div>
+          )}
+
+          <h2
+            className="
+              min-w-0
+              truncate
+              text-sm
+              font-semibold
+              text-slate-800
+              sm:text-[15px]
+            "
+          >
+            {title}
+          </h2>
+        </div>
 
         {action && (
           <div className="shrink-0">
@@ -814,18 +1128,7 @@ function FixedWidget({
         )}
       </div>
 
-      {/* =====================================================
-          SCROLLABLE CONTENT
-
-          Fixed height:
-          320px total
-
-          Header:
-          58px
-
-          Content:
-          remaining height
-      ====================================================== */}
+      {/* Scrollable content */}
 
       <div
         className="
@@ -839,11 +1142,9 @@ function FixedWidget({
           sm:px-5
           sm:py-4
 
-          /* Firefox */
           [scrollbar-width:thin]
           [scrollbar-color:#cbd5e1_transparent]
 
-          /* WebKit */
           [&::-webkit-scrollbar]:w-1.5
           [&::-webkit-scrollbar-track]:bg-transparent
           [&::-webkit-scrollbar-thumb]:rounded-full
@@ -853,6 +1154,180 @@ function FixedWidget({
       >
         {children}
       </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   COLORFUL CHART CARD
+========================================================= */
+
+function ColorfulChartCard({
+  title,
+  children,
+  icon,
+  color = "modules",
+}) {
+  const styles =
+    WIDGET_COLORS[color] ||
+    WIDGET_COLORS.modules;
+
+  return (
+    <div
+      className={`
+        group
+        relative
+        min-w-0
+        overflow-hidden
+        rounded-xl
+        border
+        bg-white
+        shadow-sm
+        transition-all
+        duration-200
+        hover:-translate-y-0.5
+        hover:shadow-md
+        ${styles.border}
+      `}
+    >
+      {/* Top accent */}
+
+      <div
+        className={`
+          absolute
+          left-0
+          right-0
+          top-0
+          h-1
+          ${styles.accent}
+        `}
+      />
+
+      {/* Header */}
+
+      <div
+        className={`
+          flex
+          min-w-0
+          items-center
+          gap-2.5
+          border-b
+          border-slate-100
+          px-4
+          py-3.5
+          sm:px-5
+          sm:py-4
+          ${styles.header}
+        `}
+      >
+        {icon && (
+          <div
+            className={`
+              flex
+              h-8
+              w-8
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              ${styles.icon}
+            `}
+          >
+            {icon}
+          </div>
+        )}
+
+        <h2
+          className="
+            min-w-0
+            truncate
+            text-sm
+            font-semibold
+            text-slate-800
+            sm:text-[15px]
+          "
+        >
+          {title}
+        </h2>
+      </div>
+
+      {/* Content */}
+
+      <div
+        className="
+          min-w-0
+          p-4
+          sm:p-5
+        "
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   EMPTY WIDGET
+========================================================= */
+
+function EmptyWidget({
+  title,
+  description,
+}) {
+  return (
+    <div
+      className="
+        flex
+        min-h-[210px]
+        flex-col
+        items-center
+        justify-center
+        px-4
+        py-8
+        text-center
+      "
+    >
+      <div
+        className="
+          mb-3
+          flex
+          h-11
+          w-11
+          items-center
+          justify-center
+          rounded-xl
+          bg-slate-50
+          text-slate-400
+        "
+      >
+        <span className="text-lg">
+          —
+        </span>
+      </div>
+
+      <p
+        className="
+          text-sm
+          font-medium
+          text-slate-500
+        "
+      >
+        {title}
+      </p>
+
+      {description && (
+        <p
+          className="
+            mt-1
+            max-w-xs
+            text-xs
+            leading-5
+            text-slate-400
+          "
+        >
+          {description}
+        </p>
+      )}
     </div>
   );
 }
