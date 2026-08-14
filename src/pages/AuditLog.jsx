@@ -120,7 +120,7 @@ export default function AuditLog() {
         </div>
       ) : (
         <>
-          <Table columns={columns} data={logs} showPagination={false} />
+          <Table columns={columns} data={logs} showPagination={true} />
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-end gap-2">
               <Button
