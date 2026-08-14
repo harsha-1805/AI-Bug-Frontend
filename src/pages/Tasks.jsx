@@ -143,7 +143,7 @@ export default function Tasks() {
     projectService
       .listProjects({ pageSize: 100 })
       .then((data) => setProjects(data.items))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Whenever the form's selected project changes, refresh which sprints
@@ -462,9 +462,8 @@ export default function Tasks() {
             onClick={() => setViewMode("kanban")}
             aria-pressed={viewMode === "kanban"}
             title="Board view"
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              viewMode === "kanban" ? "bg-primary-50 text-primary-700" : "text-slate-500 hover:bg-slate-50"
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "kanban" ? "bg-primary-50 text-primary-700" : "text-slate-500 hover:bg-slate-50"
+              }`}
           >
             <LayoutGrid size={14} /> Board
           </button>
@@ -473,9 +472,8 @@ export default function Tasks() {
             onClick={() => setViewMode("table")}
             aria-pressed={viewMode === "table"}
             title="Table view"
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              viewMode === "table" ? "bg-primary-50 text-primary-700" : "text-slate-500 hover:bg-slate-50"
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "table" ? "bg-primary-50 text-primary-700" : "text-slate-500 hover:bg-slate-50"
+              }`}
           >
             <Table2 size={14} /> Table
           </button>
@@ -510,9 +508,8 @@ export default function Tasks() {
                 onDragOver={handleColumnDragOver(col.key)}
                 onDragLeave={() => setDragOverColumn((c) => (c === col.key ? null : c))}
                 onDrop={handleColumnDrop(col.key)}
-                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${
-                  isDragOver ? "ring-2 ring-primary-400 bg-primary-50/40" : ""
-                }`}
+                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${isDragOver ? "ring-2 ring-primary-400 bg-primary-50/40" : ""
+                  }`}
               >
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-700">{col.label}</h3>
@@ -533,26 +530,39 @@ export default function Tasks() {
                         draggable
                         onDragStart={handleDragStart(task)}
                         onDragEnd={handleDragEnd}
-                        className={`cursor-grab rounded-xl border border-border bg-white p-3 active:cursor-grabbing ${
-                          draggedTaskId === task.id ? "opacity-40" : ""
-                        }`}
+                        className={`cursor-grab rounded-xl border border-border bg-white p-3 active:cursor-grabbing ${draggedTaskId === task.id ? "opacity-40" : ""
+                          }`}
                       >
                         <div className="mb-1.5 flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-800">
-                              {task.custom_id && (
-                                <span className="mr-1 inline-block rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 align-middle">{task.custom_id}</span>
-                              )}
-                              {task.title}
-                            </p>
+                          <a
+                            className="
+    cursor-pointer
+    text-sm font-medium
+    text-slate-800
+    transition-colors
+    hover:text-primary-600
+  "
+                            onClick={() =>
+                              navigate(`/tasks/${task.id}/preview`)
+                            }
+                          >
+                            {task.custom_id && (
+                              <span className="mr-1 inline-block rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700 align-middle">
+                                {task.custom_id}
+                              </span>
+                            )}
+
+                            {task.title}
+                          </a>
                           <div className="flex shrink-0 items-center gap-0.5">
-                            <button
+                            {/* <button
                               type="button"
                               title="Preview"
                               onClick={() => navigate(`/tasks/${task.id}/preview`)}
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
                             >
                               <Eye size={14} />
-                            </button>
+                            </button> */}
                             <button
                               type="button"
                               title="Subtasks"
@@ -644,36 +654,36 @@ export default function Tasks() {
         <form className="space-y-4 sm:space-y-5" onSubmit={handleSave}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-            <label className="label">Project</label>
-            <Select
-              value={form.projectId}
-              disabled={Boolean(editingTask)}
-              onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "", assignedTo: "" }))}
-              placeholder="Select a project"
-              ariaLabel="Project"
-              options={projects.map((p) => ({ value: p.id, label: p.name }))}
-            />
-            {editingTask && (
-              <p className="mt-1 text-xs text-slate-400">
-                A task&apos;s project can&apos;t be changed after it&apos;s created.
-              </p>
-            )}
+              <label className="label">Project</label>
+              <Select
+                value={form.projectId}
+                disabled={Boolean(editingTask)}
+                onChange={(v) => setForm((f) => ({ ...f, projectId: v, sprintId: "", assignedTo: "" }))}
+                placeholder="Select a project"
+                ariaLabel="Project"
+                options={projects.map((p) => ({ value: p.id, label: p.name }))}
+              />
+              {editingTask && (
+                <p className="mt-1 text-xs text-slate-400">
+                  A task&apos;s project can&apos;t be changed after it&apos;s created.
+                </p>
+              )}
             </div>
             <div>
-            <label className="label">
-              Sprint <span className="text-red-500">*</span>
-            </label>
-            <Select
-              value={form.sprintId}
-              disabled={!form.projectId}
-              onChange={(v) => setForm((f) => ({ ...f, sprintId: v }))}
-              placeholder={form.projectId ? "Select a sprint" : "Select a project first"}
-              ariaLabel="Sprint"
-              options={formSprints.map((s) => ({ value: s.id, label: `${s.name} (${s.status})` }))}
-            />
-            <p className="mt-1 text-xs text-slate-400">
-              Required — every task must belong to a sprint (Project → Sprint → Task).
-            </p>
+              <label className="label">
+                Sprint <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={form.sprintId}
+                disabled={!form.projectId}
+                onChange={(v) => setForm((f) => ({ ...f, sprintId: v }))}
+                placeholder={form.projectId ? "Select a sprint" : "Select a project first"}
+                ariaLabel="Sprint"
+                options={formSprints.map((s) => ({ value: s.id, label: `${s.name} (${s.status})` }))}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Required — every task must belong to a sprint (Project → Sprint → Task).
+              </p>
             </div>
           </div>
           <Input
@@ -847,11 +857,10 @@ export default function Tasks() {
                       className="flex-shrink-0"
                     >
                       <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                          st.status === "Done"
-                            ? "border-emerald-500 bg-emerald-500 text-white"
-                            : "border-slate-300"
-                        }`}
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border ${st.status === "Done"
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-slate-300"
+                          }`}
                       >
                         {st.status === "Done" && <Check size={12} />}
                       </span>
@@ -871,10 +880,14 @@ export default function Tasks() {
                         />
                       ) : (
                         <span
-                          className={`block truncate text-sm cursor-text ${
-                            st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
-                          }`}
-                          title="Click to rename"
+                          className={`block cursor-pointer truncate text-sm transition-colors ${st.status === "Done"
+                              ? "text-slate-400 line-through hover:text-primary-400"
+                              : "text-slate-700 hover:text-primary-600"
+                            }`}
+                          title="Click to preview • Double-click to rename"
+                          onClick={() =>
+                            navigate(`/subtasks/${st.id}/preview`)
+                          }
                           onDoubleClick={() => startEditSubtask(st)}
                         >
                           {st.title}
@@ -889,14 +902,7 @@ export default function Tasks() {
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/subtasks/${st.id}/preview`)}
-                      className="rounded p-1 text-slate-400 hover:text-primary-600"
-                      title="Preview subtask"
-                    >
-                      <Eye size={14} />
-                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleGenerateTestCasesForSubtask(st)}
