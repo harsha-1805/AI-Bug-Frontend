@@ -10,6 +10,7 @@ import {
   Layers3,
   UserRound,
   Image as ImageIcon,
+  X,
 } from "lucide-react";
 
 import Badge from "../components/Badge.jsx";
@@ -52,7 +53,7 @@ const STATUS_STYLES = {
   },
 };
 
-export default function TaskPreviewPage() {
+export default function  TaskPreviewPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
 
@@ -60,6 +61,7 @@ export default function TaskPreviewPage() {
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -563,20 +565,32 @@ export default function TaskPreviewPage() {
                       "
                     >
                       {task.attachments.map((att) => (
-                        <div
+                        <button
                           key={att.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedImage(
+                              resolveMediaUrl(att.image_url)
+                            )
+                          }
                           className="
                             group
+                            block w-full
                             overflow-hidden
                             rounded-xl
                             border border-slate-200
                             bg-slate-50
+                            text-left
                             shadow-sm
                             transition-all duration-200
                             hover:-translate-y-0.5
                             hover:border-violet-200
                             hover:shadow-md
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-violet-500/30
                           "
+                          aria-label="Preview task reference image"
                         >
                           <div className="relative overflow-hidden">
                             <img
@@ -600,18 +614,32 @@ export default function TaskPreviewPage() {
                               className="
                                 pointer-events-none
                                 absolute inset-0
-                                bg-gradient-to-t
-                                from-black/20
-                                via-transparent
-                                to-transparent
-                                opacity-0
-                                transition-opacity
+                                flex items-center justify-center
+                                bg-black/0
+                                transition-all
                                 duration-200
-                                group-hover:opacity-100
+                                group-hover:bg-black/30
                               "
-                            />
+                            >
+                              <span
+                                className="
+                                  rounded-full
+                                  bg-white/90
+                                  px-4 py-2
+                                  text-xs font-semibold
+                                  text-slate-700
+                                  opacity-0
+                                  shadow-lg
+                                  transition-opacity
+                                  duration-200
+                                  group-hover:opacity-100
+                                "
+                              >
+                                Click to preview
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </section>
@@ -621,6 +649,64 @@ export default function TaskPreviewPage() {
           </div>
         )}
       </div>
+
+      {/* =========================================================
+          IMAGE PREVIEW MODAL
+      ========================================================== */}
+      {selectedImage && (
+        <div
+          className="
+            fixed inset-0 z-[9999]
+            flex items-center justify-center
+            bg-black/80
+            p-4
+            backdrop-blur-sm
+          "
+          onClick={() => setSelectedImage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+        >
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={() => setSelectedImage(null)}
+            className="
+              absolute right-4 top-4
+              z-10
+              flex h-10 w-10
+              items-center justify-center
+              rounded-full
+              bg-white/10
+              text-white
+              shadow-lg
+              transition
+              hover:bg-white/20
+              focus:outline-none
+              focus:ring-2
+              focus:ring-white/50
+              sm:right-6 sm:top-6
+            "
+            aria-label="Close image preview"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Preview image */}
+          <img
+            src={selectedImage}
+            alt="Task reference preview"
+            className="
+              max-h-[90vh]
+              max-w-[95vw]
+              rounded-lg
+              object-contain
+              shadow-2xl
+            "
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
