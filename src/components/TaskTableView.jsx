@@ -111,12 +111,24 @@ export default function TaskTableView({
       render: (task) => (
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-slate-800">{task.title}</p>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onPreview(task);
+              }}
+              className="font-medium text-slate-800 cursor-pointer hover:underline"
+            >
+              {task.title}
+            </a>
+
             {showProjectColumn && (
-              <p className="mt-0.5 text-xs text-primary-600">{projectName(task.project_id)}</p>
+              <p className="mt-0.5 text-xs text-primary-600">
+                {projectName(task.project_id)}
+              </p>
             )}
           </div>
-          {onPreview && (
+          {/* {onPreview && (
             <button
               type="button"
               onClick={() => onPreview(task)}
@@ -125,7 +137,7 @@ export default function TaskTableView({
             >
               <Eye size={15} />
             </button>
-          )}
+          )} */}
         </div>
       ),
     },
@@ -208,6 +220,7 @@ export default function TaskTableView({
         <div className="flex gap-2">
           <Input
             value={newTitleByTask[task.id] || ""}
+            maxLength={100}
             onChange={(e) => setNewTitleByTask((cur) => ({ ...cur, [task.id]: e.target.value }))}
             placeholder="Add a subtask..."
             className="flex-1"
@@ -232,14 +245,25 @@ export default function TaskTableView({
                 className="flex items-center justify-between gap-3 rounded-lg border border-border bg-white px-3 py-2"
               >
                 <div className="min-w-0 flex-1">
-                  <p
-                    className={`truncate text-sm ${
-                      st.status === "Done" ? "text-slate-400 line-through" : "text-slate-700"
-                    }`}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onPreviewSubtask(st);
+                    }}
+                    className={`truncate text-sm block cursor-pointer hover:underline ${st.status === "Done"
+                      ? "text-slate-400 line-through"
+                      : "text-slate-700"
+                      }`}
                   >
                     {st.title}
-                  </p>
-                  {st.assignee && <p className="text-[11px] text-slate-400">{st.assignee.full_name}</p>}
+                  </a>
+
+                  {st.assignee && (
+                    <p className="text-[11px] text-slate-400">
+                      {st.assignee.full_name}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Select
@@ -249,7 +273,7 @@ export default function TaskTableView({
                     options={STATUS_OPTIONS}
                     className="w-auto min-w-[8.5rem]"
                   />
-                  {onPreviewSubtask && (
+                  {/* {onPreviewSubtask && (
                     <button
                       type="button"
                       onClick={() => onPreviewSubtask(st)}
@@ -258,7 +282,7 @@ export default function TaskTableView({
                     >
                       <Eye size={14} />
                     </button>
-                  )}
+                  )} */}
                   {onGenerateTestCasesForSubtask && (
                     <button
                       type="button"

@@ -1,6 +1,9 @@
 import { useRef } from "react";
+import toast from "react-hot-toast";
 import { UploadCloud, Terminal, Braces, Link2, MessageSquare, Lock } from "lucide-react";
 import Input from "./Input.jsx";
+import Textarea from "./Textarea.jsx";
+import { validateImageFile, TEXT_MAX_LENGTH, TEXTAREA_MAX_LENGTH } from "../utils/validation.js";
 
 /**
  * Evidence upload section for the AI Bug Generator.
@@ -39,7 +42,14 @@ export default function EvidenceUploader({
   const fileInputRef = useRef(null);
 
   const handleFiles = (files) => {
-    if (files && files[0]) onImageSelect(files[0]);
+    const file = files && files[0];
+    if (!file) return;
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    onImageSelect(file);
   };
 
   return (
@@ -64,7 +74,7 @@ export default function EvidenceUploader({
         <UploadCloud size={28} className="text-primary-500" />
         <div>
           <p className="text-sm font-medium text-slate-700">Click or drag a screenshot here</p>
-          <p className="text-xs text-slate-400">PNG, JPG or WEBP · required</p>
+          <p className="text-xs text-slate-400">PNG, JPG or WEBP · required · max 5MB</p>
         </div>
         <input
           ref={fileInputRef}
@@ -82,8 +92,9 @@ export default function EvidenceUploader({
           <label className="label flex items-center gap-1.5">
             <MessageSquare size={14} /> User Description <span className="font-normal text-slate-400">(optional)</span>
           </label>
-          <textarea
-            className="input min-h-[80px] resize-y"
+          <Textarea
+            className="resize-y"
+            maxLength={TEXTAREA_MAX_LENGTH}
             placeholder="What were you doing when this happened?"
             value={userDescription}
             onChange={(e) => onUserDescriptionChange(e.target.value)}
@@ -99,6 +110,7 @@ export default function EvidenceUploader({
           }
           placeholder="https://app.example.com/checkout"
           value={browserUrl}
+          maxLength={TEXT_MAX_LENGTH}
           onChange={(e) => onBrowserUrlChange(e.target.value)}
           disabled={disabled}
         />
@@ -107,8 +119,9 @@ export default function EvidenceUploader({
           <label className="label flex items-center gap-1.5">
             <Terminal size={14} /> Console Log <span className="font-normal text-slate-400">(optional)</span>
           </label>
-          <textarea
-            className="input min-h-[80px] resize-y font-mono text-xs"
+          <Textarea
+            className="resize-y font-mono text-xs"
+            maxLength={TEXTAREA_MAX_LENGTH}
             placeholder="Paste browser console output..."
             value={consoleLog}
             onChange={(e) => onConsoleLogChange(e.target.value)}
@@ -120,8 +133,9 @@ export default function EvidenceUploader({
           <label className="label flex items-center gap-1.5">
             <Braces size={14} /> Stack Trace <span className="font-normal text-slate-400">(optional)</span>
           </label>
-          <textarea
-            className="input min-h-[80px] resize-y font-mono text-xs"
+          <Textarea
+            className="resize-y font-mono text-xs"
+            maxLength={TEXTAREA_MAX_LENGTH}
             placeholder="Paste the error stack trace..."
             value={stackTrace}
             onChange={(e) => onStackTraceChange(e.target.value)}

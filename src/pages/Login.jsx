@@ -35,6 +35,8 @@ export default function Login() {
           label="Email address"
           type="email"
           placeholder="you@company.com"
+          maxLength={254}
+          showCounter={false}
           error={errors.email?.message}
           {...register("email", { required: "Email is required" })}
         />
@@ -42,6 +44,8 @@ export default function Login() {
           label="Password"
           type="password"
           placeholder="••••••••"
+          maxLength={72}
+          showCounter={false}
           error={errors.password?.message}
           {...register("password", { required: "Password is required" })}
         />

@@ -18,6 +18,7 @@ import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useProjectFilter } from "../hooks/useProjectFilter";
+import { validateRequiredText, TEXT_MAX_LENGTH } from "../utils/validation.js";
 
 const TASK_STATUS_TONE = { "To Do": "neutral", "In Progress": "medium", Done: "success" };
 
@@ -101,8 +102,9 @@ export default function Sprints() {
       toast.error("Select a project first");
       return;
     }
-    if (!form.name.trim()) {
-      toast.error("Sprint name is required");
+    const nameError = validateRequiredText(form.name, { label: "Sprint name", maxLength: TEXT_MAX_LENGTH });
+    if (nameError) {
+      toast.error(nameError);
       return;
     }
     if (form.startDate && form.startDate < todayStr()) {
@@ -334,6 +336,7 @@ export default function Sprints() {
           <Input
             label="Sprint name"
             value={form.name}
+            maxLength={TEXT_MAX_LENGTH}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="e.g. Sprint 12"
           />

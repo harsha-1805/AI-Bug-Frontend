@@ -1,8 +1,10 @@
 import { CheckCircle2, Layers, Plus, Save, X } from "lucide-react";
 import Input from "./Input.jsx";
+import Textarea from "./Textarea.jsx";
 import Button from "./Button.jsx";
 import Badge from "./Badge.jsx";
 import Select from "./Select.jsx";
+import { isBlank, TEXT_MAX_LENGTH, TEXTAREA_MAX_LENGTH } from "../utils/validation.js";
 
 const SEVERITY_OPTIONS = ["Critical", "High", "Medium", "Low"];
 const PRIORITY_OPTIONS = ["P0", "P1", "P2", "P3"];
@@ -34,6 +36,7 @@ function ListEditor({ label, items, onChange, placeholder }) {
             <input
               className="input"
               value={item}
+              maxLength={TEXT_MAX_LENGTH}
               placeholder={placeholder}
               onChange={(e) => updateItem(i, e.target.value)}
             />
@@ -87,19 +90,33 @@ export default function BugReportForm({
   const update = (field, value) => onChange({ ...bugReport, [field]: value });
 
   const selectedTask = tasks.find((t) => String(t.id) === String(selectedTaskId));
-  const canSave = Boolean(selectedProjectId) && !saving;
+  const titleInvalid = isBlank(bugReport.title) || bugReport.title.trim().length > TEXT_MAX_LENGTH;
+  const canSave = Boolean(selectedProjectId) && !saving && !titleInvalid;
 
   return (
     <div className="card space-y-5 p-5">
-      <Input label="Title" value={bugReport.title} onChange={(e) => update("title", e.target.value)} />
+      <Input
+        label="Title"
+        value={bugReport.title}
+        maxLength={TEXT_MAX_LENGTH}
+        error={isBlank(bugReport.title) ? "Title is required" : undefined}
+        onChange={(e) => update("title", e.target.value)}
+      />
 
-      <Field label="Summary">
-        <textarea className="input min-h-[60px]" value={bugReport.summary} onChange={(e) => update("summary", e.target.value)} />
-      </Field>
+      <Textarea
+        label="Summary"
+        value={bugReport.summary}
+        maxLength={TEXTAREA_MAX_LENGTH}
+        onChange={(e) => update("summary", e.target.value)}
+      />
 
-      <Field label="Description">
-        <textarea className="input min-h-[100px]" value={bugReport.description} onChange={(e) => update("description", e.target.value)} />
-      </Field>
+      <Textarea
+        label="Description"
+        value={bugReport.description}
+        maxLength={TEXTAREA_MAX_LENGTH}
+        className="min-h-[100px]"
+        onChange={(e) => update("description", e.target.value)}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Severity">
@@ -118,23 +135,47 @@ export default function BugReportForm({
             ariaLabel="Priority"
           />
         </Field>
-        <Input label="Environment" value={bugReport.environment || ""} onChange={(e) => update("environment", e.target.value)} />
-        <Input label="Module" value={bugReport.module || ""} onChange={(e) => update("module", e.target.value)} />
-        <Input label="Bug Type" value={bugReport.bug_type || ""} onChange={(e) => update("bug_type", e.target.value)} />
+        <Input
+          label="Environment"
+          value={bugReport.environment || ""}
+          maxLength={TEXT_MAX_LENGTH}
+          onChange={(e) => update("environment", e.target.value)}
+        />
+        <Input
+          label="Module"
+          value={bugReport.module || ""}
+          maxLength={TEXT_MAX_LENGTH}
+          onChange={(e) => update("module", e.target.value)}
+        />
+        <Input
+          label="Bug Type"
+          value={bugReport.bug_type || ""}
+          maxLength={TEXT_MAX_LENGTH}
+          onChange={(e) => update("bug_type", e.target.value)}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Expected Result">
-          <textarea className="input min-h-[70px]" value={bugReport.expected_result || ""} onChange={(e) => update("expected_result", e.target.value)} />
-        </Field>
-        <Field label="Actual Result">
-          <textarea className="input min-h-[70px]" value={bugReport.actual_result || ""} onChange={(e) => update("actual_result", e.target.value)} />
-        </Field>
+        <Textarea
+          label="Expected Result"
+          value={bugReport.expected_result || ""}
+          maxLength={TEXTAREA_MAX_LENGTH}
+          onChange={(e) => update("expected_result", e.target.value)}
+        />
+        <Textarea
+          label="Actual Result"
+          value={bugReport.actual_result || ""}
+          maxLength={TEXTAREA_MAX_LENGTH}
+          onChange={(e) => update("actual_result", e.target.value)}
+        />
       </div>
 
-      <Field label="Possible Root Cause">
-        <textarea className="input min-h-[70px]" value={bugReport.possible_root_cause || ""} onChange={(e) => update("possible_root_cause", e.target.value)} />
-      </Field>
+      <Textarea
+        label="Possible Root Cause"
+        value={bugReport.possible_root_cause || ""}
+        maxLength={TEXTAREA_MAX_LENGTH}
+        onChange={(e) => update("possible_root_cause", e.target.value)}
+      />
 
       <ListEditor
         label="Steps To Reproduce"

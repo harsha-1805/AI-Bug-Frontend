@@ -20,6 +20,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import { reportsService } from "../services/reportsService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useProjectFilter } from "../hooks/useProjectFilter";
+import { isDateRangeValid } from "../utils/validation.js";
 
 const EXPORT_TYPES = [
   { value: "bugs", label: "Bugs" },
@@ -45,6 +46,10 @@ export default function Reports() {
   const [exporting, setExporting] = useState(false);
 
   const loadReports = useCallback(async () => {
+    if (!isDateRangeValid(dateFrom, dateTo)) {
+      toast.error("'To' date can't be before 'From' date");
+      return;
+    }
     setLoading(true);
     const filters = { projectId: projectId ? Number(projectId) : undefined, dateFrom, dateTo };
     try {
@@ -70,6 +75,10 @@ export default function Reports() {
   }, [loadReports]);
 
   const handleExport = async () => {
+    if (!isDateRangeValid(dateFrom, dateTo)) {
+      toast.error("'To' date can't be before 'From' date");
+      return;
+    }
     setExporting(true);
     try {
       await reportsService.downloadExport({
@@ -95,7 +104,7 @@ export default function Reports() {
           type stay local to this page. */}
       <div className="card mb-6 flex flex-wrap items-end gap-3 p-4">
         <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <Input label="To" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
 
         <div className="ml-auto flex items-end gap-2">
           <div className="w-40">

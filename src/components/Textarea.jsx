@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 
-const Input = forwardRef(function Input(
+const Textarea = forwardRef(function Textarea(
   { label, error, id, className = "", maxLength, showCounter = true, value, ...props },
   ref
 ) {
@@ -21,12 +21,12 @@ const Input = forwardRef(function Input(
           )}
         </div>
       )}
-      <input
+      <textarea
         ref={ref}
         id={id}
         maxLength={maxLength}
         value={value}
-        className={`input ${error ? "border-red-400 focus:ring-red-200" : ""} ${className}`}
+        className={`input min-h-[70px] ${error ? "border-red-400 focus:ring-red-200" : ""} ${className}`}
         {...props}
       />
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
@@ -34,4 +34,4 @@ const Input = forwardRef(function Input(
   );
 });
 
-export default Input;
+export default Textarea;

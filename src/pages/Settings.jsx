@@ -9,6 +9,7 @@ import { useAuth } from "../hooks/useAuth";
 import { authService } from "../services/authService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS } from "../utils/emailValidation.js";
+import { validateRequiredText, TEXT_MAX_LENGTH, EMAIL_MAX_LENGTH } from "../utils/validation.js";
 
 export default function Settings() {
   const { user, getCurrentUser } = useAuth();
@@ -34,8 +35,9 @@ export default function Settings() {
 
   const handleProfileSave = async (e) => {
     e.preventDefault();
-    if (!profileForm.fullName.trim()) {
-      toast.error("Full name can't be empty");
+    const nameError = validateRequiredText(profileForm.fullName, { label: "Full name", maxLength: TEXT_MAX_LENGTH });
+    if (nameError) {
+      toast.error(nameError);
       return;
     }
     if (profileForm.email && !isEmailDomainAllowed(profileForm.email.trim())) {
@@ -116,12 +118,14 @@ export default function Settings() {
             <Input
               label="Full name"
               value={profileForm.fullName}
+              maxLength={TEXT_MAX_LENGTH}
               onChange={(e) => setProfileForm((f) => ({ ...f, fullName: e.target.value }))}
             />
             <Input
               label="Email address"
               type="email"
               value={profileForm.email}
+              maxLength={EMAIL_MAX_LENGTH}
               onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
             />
             <div className="sm:col-span-2">
@@ -144,6 +148,7 @@ export default function Settings() {
                 label="Current password"
                 type="password"
                 value={passwordForm.currentPassword}
+                maxLength={72}
                 onChange={(e) =>
                   setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))
                 }
@@ -153,6 +158,7 @@ export default function Settings() {
               label="New password"
               type="password"
               value={passwordForm.newPassword}
+              maxLength={72}
               onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
               placeholder="At least 8 characters"
             />
@@ -160,6 +166,7 @@ export default function Settings() {
               label="Confirm new password"
               type="password"
               value={passwordForm.confirmPassword}
+              maxLength={72}
               onChange={(e) =>
                 setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))
               }

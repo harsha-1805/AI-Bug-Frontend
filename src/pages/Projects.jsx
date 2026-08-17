@@ -7,6 +7,7 @@ import Button from "../components/Button.jsx";
 import Table from "../components/Table.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
+import Textarea from "../components/Textarea.jsx";
 import Dropdown from "../components/Dropdown.jsx";
 import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -16,6 +17,7 @@ import MultiSelectCheckboxes from "../components/MultiSelectCheckboxes.jsx";
 import { projectService } from "../services/projectService";
 import { adminService } from "../services/adminService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { validateRequiredText, validateOptionalText, TEXT_MAX_LENGTH, TEXTAREA_MAX_LENGTH } from "../utils/validation.js";
 
 export default function Projects() {
   const [loading, setLoading] = useState(true);
@@ -86,8 +88,17 @@ export default function Projects() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error("Project name is required");
+    const nameError = validateRequiredText(form.name, { label: "Project name", maxLength: TEXT_MAX_LENGTH });
+    if (nameError) {
+      toast.error(nameError);
+      return;
+    }
+    const descriptionError = validateOptionalText(form.description, {
+      label: "Description",
+      maxLength: TEXTAREA_MAX_LENGTH,
+    });
+    if (descriptionError) {
+      toast.error(descriptionError);
       return;
     }
     setSaving(true);
@@ -278,18 +289,17 @@ export default function Projects() {
           <Input
             label="Project name"
             value={form.name}
+            maxLength={TEXT_MAX_LENGTH}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="e.g. Retail Portal"
           />
-          <div>
-            <label className="label">Description</label>
-            <textarea
-              className="input min-h-[80px]"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="What is this project for?"
-            />
-          </div>
+          <Textarea
+            label="Description"
+            value={form.description}
+            maxLength={TEXTAREA_MAX_LENGTH}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="What is this project for?"
+          />
           <div>
             <label className="label">Owner</label>
             <Select

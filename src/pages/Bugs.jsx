@@ -9,6 +9,7 @@ import Table from "../components/Table.jsx";
 import Badge from "../components/Badge.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
+import Textarea from "../components/Textarea.jsx";
 import Dropdown from "../components/Dropdown.jsx";
 import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -18,6 +19,12 @@ import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
 import { getErrorMessage } from "../utils/apiError.js";
+import {
+  validateRequiredText,
+  validateOptionalText,
+  TEXT_MAX_LENGTH,
+  TEXTAREA_MAX_LENGTH,
+} from "../utils/validation.js";
 import { useAuth } from "../hooks/useAuth";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
@@ -191,8 +198,17 @@ export default function Bugs() {
       toast.error("Every bug needs to belong to a project — pick one");
       return;
     }
-    if (!form.title.trim()) {
-      toast.error("Bug title is required");
+    const titleError = validateRequiredText(form.title, { label: "Bug title", maxLength: TEXT_MAX_LENGTH });
+    if (titleError) {
+      toast.error(titleError);
+      return;
+    }
+    const descriptionError = validateOptionalText(form.description, {
+      label: "Description",
+      maxLength: TEXTAREA_MAX_LENGTH,
+    });
+    if (descriptionError) {
+      toast.error(descriptionError);
       return;
     }
     setSaving(true);
@@ -460,7 +476,7 @@ export default function Bugs() {
         </span>
       </div>
 
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1">
           {loading ? (
             <div className="card flex items-center justify-center p-10">
@@ -574,18 +590,17 @@ export default function Bugs() {
           <Input
             label="Title"
             value={form.title}
+            maxLength={TEXT_MAX_LENGTH}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="e.g. Login fails after password update"
           />
-          <div>
-            <label className="label">Description</label>
-            <textarea
-              className="input min-h-[70px]"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
+          <Textarea
+            label="Description"
+            value={form.description}
+            maxLength={TEXTAREA_MAX_LENGTH}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="label">Severity</label>
               <Select
@@ -614,7 +629,7 @@ export default function Bugs() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Sprint (optional)</label>
               <Select

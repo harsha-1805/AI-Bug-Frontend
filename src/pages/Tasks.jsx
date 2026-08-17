@@ -20,6 +20,7 @@ import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
 import Modal from "../components/Modal.jsx";
 import Input from "../components/Input.jsx";
+import Textarea from "../components/Textarea.jsx";
 import Dropdown from "../components/Dropdown.jsx";
 import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -36,6 +37,13 @@ import { useAuth } from "../hooks/useAuth";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
+import {
+  validateRequiredText,
+  validateOptionalText,
+  validateImageFile,
+  TEXT_MAX_LENGTH,
+  TEXTAREA_MAX_LENGTH,
+} from "../utils/validation.js";
 
 // These three are the only statuses the backend model actually supports
 // (see Task.status in app/models.py) — keeping the columns in sync with
@@ -202,8 +210,25 @@ export default function Tasks() {
       toast.error("Every task needs a sprint — pick one before saving");
       return;
     }
-    if (!form.title.trim()) {
-      toast.error("Task title is required");
+    const titleError = validateRequiredText(form.title, { label: "Task title", maxLength: TEXT_MAX_LENGTH });
+    if (titleError) {
+      toast.error(titleError);
+      return;
+    }
+    const descriptionError = validateOptionalText(form.description, {
+      label: "Description",
+      maxLength: TEXTAREA_MAX_LENGTH,
+    });
+    if (descriptionError) {
+      toast.error(descriptionError);
+      return;
+    }
+    const acceptanceCriteriaError = validateOptionalText(form.acceptanceCriteria, {
+      label: "Acceptance criteria",
+      maxLength: TEXTAREA_MAX_LENGTH,
+    });
+    if (acceptanceCriteriaError) {
+      toast.error(acceptanceCriteriaError);
       return;
     }
     setSaving(true);
@@ -272,6 +297,11 @@ export default function Tasks() {
   // --- Reference screenshot attachments (AI test-case grounding) ---------
   const handleAttachmentUpload = async (file) => {
     if (!file || !editingTask) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setUploadingAttachment(true);
     try {
       const created = await taskService.uploadAttachment(editingTask.id, file);
@@ -689,22 +719,21 @@ export default function Tasks() {
           <Input
             label="Title"
             value={form.title}
+            maxLength={TEXT_MAX_LENGTH}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="e.g. Implement login form"
           />
+          <Textarea
+            label="Description"
+            value={form.description}
+            maxLength={TEXTAREA_MAX_LENGTH}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          />
           <div>
-            <label className="label">Description</label>
-            <textarea
-              className="input min-h-[70px]"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="label">Acceptance criteria</label>
-            <textarea
-              className="input min-h-[70px]"
+            <Textarea
+              label="Acceptance criteria"
               value={form.acceptanceCriteria}
+              maxLength={TEXTAREA_MAX_LENGTH}
               onChange={(e) => setForm((f) => ({ ...f, acceptanceCriteria: e.target.value }))}
               placeholder={"e.g.\n- User sees a validation error for an invalid email\n- Password field masks input by default"}
             />
@@ -819,6 +848,7 @@ export default function Tasks() {
             <div className="flex gap-2">
               <Input
                 value={newSubtaskTitle}
+                maxLength={TEXT_MAX_LENGTH}
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 placeholder="Add a subtask..."
                 className="flex-1"
@@ -869,6 +899,7 @@ export default function Tasks() {
                       {editingSubtaskId === st.id ? (
                         <input
                           autoFocus
+                          maxLength={TEXT_MAX_LENGTH}
                           className="w-full rounded border border-primary-300 px-1.5 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary-400"
                           value={editingSubtaskTitle}
                           onChange={(e) => setEditingSubtaskTitle(e.target.value)}

@@ -33,6 +33,7 @@ import { useProjectFilter } from "../hooks/useProjectFilter";
 import { getErrorMessage } from "../utils/apiError.js";
 import { downloadCsv } from "../utils/downloadCsv.js";
 import { takePendingTestCaseRequest } from "../utils/aiHandoff.js";
+import { TEXTAREA_MAX_LENGTH } from "../utils/validation.js";
 
 const SUGGESTION_CARDS = [
   { icon: Bug, text: "Show me the open bugs", hint: "Filter bugs" },
@@ -149,6 +150,7 @@ function TestCaseMessage({ msg, projects, onRegenerate, onSave, regenerating }) 
           </p>
           <textarea
             className="input min-h-[70px] text-xs"
+            maxLength={TEXTAREA_MAX_LENGTH}
             placeholder="e.g. Add more edge cases for empty input fields. Make the steps more specific about which button to click."
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
@@ -544,6 +546,7 @@ export default function AIAssistant() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Ask AI anything about your bugs, tasks, or sprints..."
+            maxLength={TEXTAREA_MAX_LENGTH}
             className="input"
             disabled={sending || regenerating}
           />
