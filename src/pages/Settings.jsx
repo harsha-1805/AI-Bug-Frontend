@@ -8,8 +8,12 @@ import Badge from "../components/Badge.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { authService } from "../services/authService";
 import { getErrorMessage } from "../utils/apiError.js";
-import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS } from "../utils/emailValidation.js";
-import { validateRequiredText, TEXT_MAX_LENGTH, EMAIL_MAX_LENGTH } from "../utils/validation.js";
+import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS, isEmailLocalPartValid, EMAIL_LOCAL_PART_ERROR } from "../utils/emailValidation.js";
+
+// Mirrors the backend's change_own_password complexity rule: at least
+// one uppercase letter, one lowercase letter, one number, and one
+// special character (min length 8 is checked separately below).
+const PASSWORD_COMPLEXITY_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
 
 export default function Settings() {
   const { user, getCurrentUser } = useAuth();
@@ -35,12 +39,19 @@ export default function Settings() {
 
   const handleProfileSave = async (e) => {
     e.preventDefault();
-    const nameError = validateRequiredText(profileForm.fullName, { label: "Full name", maxLength: TEXT_MAX_LENGTH });
-    if (nameError) {
-      toast.error(nameError);
+    if (!profileForm.fullName.trim()) {
+      toast.error("Full name can't be empty");
       return;
     }
-    if (profileForm.email && !isEmailDomainAllowed(profileForm.email.trim())) {
+    if (!profileForm.email.trim()) {
+      toast.error("Email address is required");
+      return;
+    }
+    if (!isEmailLocalPartValid(profileForm.email.trim())) {
+      toast.error(EMAIL_LOCAL_PART_ERROR);
+      return;
+    }
+    if (!isEmailDomainAllowed(profileForm.email.trim())) {
       toast.error(
         `Please use a standard email domain (${ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(", ")}).`
       );
@@ -71,8 +82,18 @@ export default function Settings() {
       toast.error("New password must be at least 8 characters");
       return;
     }
+    if (!PASSWORD_COMPLEXITY_RE.test(passwordForm.newPassword)) {
+      toast.error(
+        "New password must include at least one uppercase letter, one lowercase letter, one number, and one special character"
+      );
+      return;
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error("New passwords do not match");
+      return;
+    }
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      toast.error("New password must be different from your current password");
       return;
     }
     setSavingPassword(true);
@@ -118,14 +139,13 @@ export default function Settings() {
             <Input
               label="Full name"
               value={profileForm.fullName}
-              maxLength={TEXT_MAX_LENGTH}
               onChange={(e) => setProfileForm((f) => ({ ...f, fullName: e.target.value }))}
             />
             <Input
-              label="Email address"
+              label="Email address *"
               type="email"
+              required
               value={profileForm.email}
-              maxLength={EMAIL_MAX_LENGTH}
               onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
             />
             <div className="sm:col-span-2">
@@ -148,7 +168,6 @@ export default function Settings() {
                 label="Current password"
                 type="password"
                 value={passwordForm.currentPassword}
-                maxLength={72}
                 onChange={(e) =>
                   setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))
                 }
@@ -158,15 +177,13 @@ export default function Settings() {
               label="New password"
               type="password"
               value={passwordForm.newPassword}
-              maxLength={72}
               onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
-              placeholder="At least 8 characters"
+              placeholder="8+ chars, upper, lower, number & symbol"
             />
             <Input
               label="Confirm new password"
               type="password"
               value={passwordForm.confirmPassword}
-              maxLength={72}
               onChange={(e) =>
                 setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))
               }

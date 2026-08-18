@@ -34,6 +34,16 @@ const PRIORITY_TONE = { High: "high", Medium: "medium", Low: "low" };
 function TestCasePreviewModal({ record, open, onClose }) {
   const [expanded, setExpanded] = useState(null); // row index for full-detail view
 
+  // Reset which row is expanded every time this modal is (re)opened, so a
+  // row left expanded from a previous open doesn't carry over — otherwise
+  // it stays open (or open-but-invisible) next time since this component
+  // isn't unmounted between opens, just hidden.
+  useEffect(() => {
+    if (open) {
+      setExpanded(null);
+    }
+  }, [open, record?.id]);
+
   if (!record) return null;
 
   let rows = [];

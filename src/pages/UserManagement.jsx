@@ -28,8 +28,7 @@ import MultiSelectCheckboxes from "../components/MultiSelectCheckboxes.jsx";
 import { useAuth } from "../hooks/useAuth";
 import { adminService, rolesService } from "../services/adminService";
 import { getErrorMessage } from "../utils/apiError.js";
-import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS } from "../utils/emailValidation.js";
-import { validateRequiredText, TEXT_MAX_LENGTH, EMAIL_MAX_LENGTH } from "../utils/validation.js";
+import { isEmailDomainAllowed, ALLOWED_EMAIL_DOMAINS, isEmailLocalPartValid, EMAIL_LOCAL_PART_ERROR } from "../utils/emailValidation.js";
 
 // Matches the 5 roles actually seeded by the backend
 // (app/services/role_service.py -> DEFAULT_ROLE_DESCRIPTIONS).
@@ -115,14 +114,12 @@ export default function UserManagement() {
 
   const handleInvite = async (e) => {
     e.preventDefault();
-    const nameError = validateRequiredText(inviteForm.fullName, { label: "Full name", maxLength: TEXT_MAX_LENGTH });
-    if (nameError) {
-      toast.error(nameError);
+    if (!inviteForm.fullName.trim() || !inviteForm.email.trim()) {
+      toast.error("Full name and email are required");
       return;
     }
-    const emailError = validateRequiredText(inviteForm.email, { label: "Email", maxLength: EMAIL_MAX_LENGTH });
-    if (emailError) {
-      toast.error(emailError);
+    if (!isEmailLocalPartValid(inviteForm.email.trim())) {
+      toast.error(EMAIL_LOCAL_PART_ERROR);
       return;
     }
     if (!isEmailDomainAllowed(inviteForm.email.trim())) {
@@ -156,14 +153,8 @@ export default function UserManagement() {
 
   const handleEditSave = async (e) => {
     e.preventDefault();
-    const nameError = validateRequiredText(editForm.fullName, { label: "Full name", maxLength: TEXT_MAX_LENGTH });
-    if (nameError) {
-      toast.error(nameError);
-      return;
-    }
-    const emailError = validateRequiredText(editForm.email, { label: "Email", maxLength: EMAIL_MAX_LENGTH });
-    if (emailError) {
-      toast.error(emailError);
+    if (editForm.email && !isEmailLocalPartValid(editForm.email.trim())) {
+      toast.error(EMAIL_LOCAL_PART_ERROR);
       return;
     }
     if (editForm.email && !isEmailDomainAllowed(editForm.email.trim())) {
@@ -491,7 +482,6 @@ export default function UserManagement() {
             <Input
               label="Full name"
               value={inviteForm.fullName}
-              maxLength={TEXT_MAX_LENGTH}
               onChange={(e) => setInviteForm((f) => ({ ...f, fullName: e.target.value }))}
               placeholder="Jane Doe"
             />
@@ -499,7 +489,6 @@ export default function UserManagement() {
               label="Email address"
               type="email"
               value={inviteForm.email}
-              maxLength={EMAIL_MAX_LENGTH}
               onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
               placeholder="jane@gmail.com"
             />
@@ -540,14 +529,12 @@ export default function UserManagement() {
           <Input
             label="Full name"
             value={editForm.fullName}
-            maxLength={TEXT_MAX_LENGTH}
             onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
           />
           <Input
             label="Email address"
             type="email"
             value={editForm.email}
-            maxLength={EMAIL_MAX_LENGTH}
             onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
           />
         </form>
@@ -622,7 +609,6 @@ export default function UserManagement() {
             label="New password"
             type="password"
             value={resetPasswordValue}
-            maxLength={72}
             onChange={(e) => setResetPasswordValue(e.target.value)}
             placeholder="At least 8 characters"
           />
