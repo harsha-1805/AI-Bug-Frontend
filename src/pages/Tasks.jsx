@@ -566,12 +566,12 @@ export default function Tasks() {
                         <div className="mb-1.5 flex items-start justify-between gap-2">
                           <a
                             className="
-    cursor-pointer
-    text-sm font-medium
-    text-slate-800
-    transition-colors
-    hover:text-primary-600
-  "
+                              cursor-pointer
+                              text-sm font-medium
+                              text-slate-800
+                              transition-colors
+                              hover:text-primary-600
+                            "
                             onClick={() =>
                               navigate(`/tasks/${task.id}/preview`)
                             }
@@ -603,6 +603,7 @@ export default function Tasks() {
                             </button>
                             <Dropdown
                               label={<MoreVertical size={14} />}
+                              showChevron={false}
                               items={[
                                 { label: "Preview", icon: Eye, onClick: () => navigate(`/tasks/${task.id}/preview`) },
                                 { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
@@ -912,8 +913,8 @@ export default function Tasks() {
                       ) : (
                         <span
                           className={`block cursor-pointer truncate text-sm transition-colors ${st.status === "Done"
-                              ? "text-slate-400 line-through hover:text-primary-400"
-                              : "text-slate-700 hover:text-primary-600"
+                            ? "text-slate-400 line-through hover:text-primary-400"
+                            : "text-slate-700 hover:text-primary-600"
                             }`}
                           title="Click to preview • Double-click to rename"
                           onClick={() =>
