@@ -66,7 +66,7 @@ export default function Projects() {
     adminService
       .listUsers({ pageSize: 100 })
       .then((data) => setUsers(data.items))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const openCreate = () => {
@@ -213,10 +213,11 @@ export default function Projects() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
         <Dropdown
           label={<MoreVertical size={16} />}
+          showChevron={false}
           items={[
             { label: "Manage team", icon: Users, onClick: () => openTeam(row) },
             { label: "Edit project", icon: Pencil, onClick: () => openEdit(row) },

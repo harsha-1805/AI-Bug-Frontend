@@ -210,10 +210,11 @@ export default function Sprints() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
         <Dropdown
           label={<MoreVertical size={16} />}
+           showChevron={false}
           items={[
             { label: "Edit sprint", icon: Pencil, onClick: () => openEdit(row) },
             { label: "Delete sprint", icon: Trash2, onClick: () => setConfirmDelete(row) },

@@ -359,7 +359,7 @@ export default function TestCasesLibrary() {
                 <th className="px-4 py-3 font-medium">Cases</th>
                 <th className="px-4 py-3 font-medium">Saved by</th>
                 <th className="px-4 py-3 font-medium">Saved at</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+                <th className="px-4 py-3 font-medium text-center">Actions</th>
               </tr>
             </thead>
             <tbody>

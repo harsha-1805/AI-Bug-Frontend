@@ -133,7 +133,7 @@ export default function Bugs() {
     // GET /api/v1/projects -> project_access.accessible_project_ids), so
     // every dropdown fed from `projects` automatically only shows
     // projects this user can actually use.
-    projectService.listProjects({ pageSize: 100 }).then((data) => setProjects(data.items)).catch(() => {});
+    projectService.listProjects({ pageSize: 100 }).then((data) => setProjects(data.items)).catch(() => { });
   }, []);
 
   // Whenever the form's selected project changes, refresh which sprints
@@ -417,10 +417,11 @@ export default function Bugs() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
         <Dropdown
           label={<MoreVertical size={16} />}
+          showChevron={false}
           items={[
             { label: "Edit bug", icon: Pencil, onClick: () => openEdit(row) },
             { label: "Assign", icon: UserPlus, onClick: () => openAssign(row) },

@@ -188,11 +188,12 @@ export default function TaskTableView({
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       width: 56,
       render: (task) => (
         <Dropdown
           label={<MoreVertical size={16} />}
+          showChevron={false}
           items={[
             ...(onPreview ? [{ label: "Preview", icon: Eye, onClick: () => onPreview(task) }] : []),
             { label: "Edit", icon: Pencil, onClick: () => onEdit(task) },
