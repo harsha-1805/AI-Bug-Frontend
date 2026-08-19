@@ -33,7 +33,7 @@ import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHando
 const SEVERITY_TONE = { Critical: "critical", High: "high", Medium: "medium", Low: "low" };
 const STATUS_TONE = { Open: "info", "In Progress": "medium", Resolved: "success", Closed: "neutral" };
 const STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
-const SEVERITIES = ["Critical", "High", "Medium", "Low"];
+const SEVERITIES = ["All", "Critical", "High", "Medium", "Low"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
 
 const emptyForm = {
@@ -101,9 +101,11 @@ export default function Bugs() {
       });
       // severity has no server-side filter param today — filter client-side
       // rather than adding a query param the backend doesn't accept yet.
-      const items = severityFilter
-        ? data.items.filter((b) => b.severity === severityFilter)
-        : data.items;
+      debugger
+      const items =
+        !severityFilter || severityFilter === "All"
+          ? data.items
+          : data.items.filter((b) => b.severity === severityFilter);
       setBugs(items);
       setTotal(data.total);
     } catch (err) {
@@ -347,14 +349,14 @@ export default function Bugs() {
             </p>
             <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
           </button>
-          <button
+          {/* <button
             type="button"
             onClick={() => setPreviewBug(row)}
             title="Preview"
             className="ml-auto shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-primary-600"
           >
             <Eye size={15} />
-          </button>
+          </button> */}
         </div>
       ),
     },
@@ -436,6 +438,9 @@ export default function Bugs() {
       ),
     },
   ];
+
+
+
 
   return (
     <div>

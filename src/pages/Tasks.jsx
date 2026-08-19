@@ -536,9 +536,20 @@ export default function Tasks() {
               <div
                 key={col.key}
                 onDragOver={handleColumnDragOver(col.key)}
-                onDragLeave={() => setDragOverColumn((c) => (c === col.key ? null : c))}
+                onDragLeave={() =>
+                  setDragOverColumn((c) => (c === col.key ? null : c))
+                }
                 onDrop={handleColumnDrop(col.key)}
-                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${isDragOver ? "ring-2 ring-primary-400 bg-primary-50/40" : ""
+                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${col.key === "To Do"
+                    ? "bg-blue-50/50"
+                    : col.key === "In Progress"
+                      ? "bg-amber-50/50"
+                      : col.key === "Done"
+                        ? "bg-emerald-50/50"
+                        : "bg-slate-50/50"
+                  } ${isDragOver
+                    ? "ring-2 ring-primary-400 bg-primary-50/40"
+                    : ""
                   }`}
               >
                 <div className="mb-3 flex items-center justify-between">

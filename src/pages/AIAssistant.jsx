@@ -436,223 +436,511 @@ export default function AIAssistant() {
   };
 
   return (
-    <div>
-      <PageHeader
-        title="AI Assistant"
-        subtitle={
-          projectId
-            ? `Scoped to ${projects.find((p) => String(p.id) === String(projectId))?.name || "selected project"} (change from the project filter in the top bar) — ask questions or generate test cases`
-            : "Ask questions about your bugs, tasks, and sprints — or generate test cases from one"
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" icon={Wand2} onClick={() => setPickerOpen(true)}>
-              Generate Test Cases
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="card flex h-[calc(100vh-13rem)] flex-col p-6">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          {messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-600">
-                <Sparkles size={22} />
-              </span>
-              <div>
-                <h3 className="text-base font-semibold text-slate-800">
-                  Hi{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}! How can I help?
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Try one of these, ask your own question, or drag a Task/Bug onto &ldquo;AI Assistant&rdquo; in the
-                  sidebar to generate test cases for it.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {SUGGESTION_CARDS.map((s) => (
-                  <button
-                    key={s.text}
-                    onClick={() => send(s.text)}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-white px-4 py-3 text-left text-sm text-slate-600 hover:border-primary-200 hover:bg-primary-50/40"
-                  >
-                    <s.icon size={16} className="mt-0.5 shrink-0 text-primary-500" />
-                    <span>
-                      <span className="block font-medium text-slate-700">{s.text}</span>
-                      <span className="text-xs text-slate-400">{s.hint}</span>
-                    </span>
-                  </button>
-                ))}
-                <button
-                  onClick={() => setPickerOpen(true)}
-                  className="flex items-start gap-3 rounded-xl border border-primary-200 bg-primary-50/40 px-4 py-3 text-left text-sm text-slate-600 hover:bg-primary-50"
-                >
-                  <Wand2 size={16} className="mt-0.5 shrink-0 text-primary-500" />
-                  <span>
-                    <span className="block font-medium text-slate-700">Generate test cases</span>
-                    <span className="text-xs text-slate-400">From a task or bug</span>
-                  </span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((m, i) => (
-                <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                      m.role === "user" ? "bg-slate-100 text-slate-500" : "bg-primary-50 text-primary-600"
-                    }`}
-                  >
-                    {m.role === "user" ? <UserIcon size={14} /> : <Sparkles size={14} />}
-                  </span>
-
-                  {m.kind === "test-cases" ? (
-                    <TestCaseMessage
-                      msg={m}
-                      projects={projects}
-                      onRegenerate={regenerateTestCases}
-                      onSave={saveTestCases}
-                      regenerating={regenerating}
-                    />
-                  ) : (
-                    <div
-                      className={`max-w-[75%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm ${
-                        m.role === "user" ? "bg-primary-600 text-white" : "bg-slate-50 text-slate-700"
-                      }`}
-                    >
-                      {m.text}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {(sending || regenerating) && (
-                <div className="flex gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
-                    <Sparkles size={14} />
-                  </span>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-2.5 text-sm text-slate-400">
-                    {regenerating ? "Revising test cases..." : "Thinking..."}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-4 flex items-center gap-2 border-t border-border pt-4">
-          <input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask AI anything about your bugs, tasks, or sprints..."
-            maxLength={TEXTAREA_MAX_LENGTH}
-            className="input"
-            disabled={sending || regenerating}
-          />
-          <button type="submit" className="btn-primary" disabled={sending || regenerating || !message.trim()}>
-            <Send size={16} />
-          </button>
-        </form>
+  <div className="w-full min-w-0">
+  <PageHeader
+    title="AI Assistant"
+    subtitle={
+      projectId
+        ? `Scoped to ${
+            projects.find((p) => String(p.id) === String(projectId))?.name ||
+            "selected project"
+          } (change from the project filter in the top bar) — ask questions or generate test cases`
+        : "Ask questions about your bugs, tasks, and sprints — or generate test cases from one"
+    }
+    actions={
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        <Button
+          variant="secondary"
+          icon={Wand2}
+          onClick={() => setPickerOpen(true)}
+        >
+          Generate Test Cases
+        </Button>
       </div>
+    }
+  />
 
-      {/* Generate Test Cases picker modal */}
-      <Modal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        title="Generate test cases"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPickerOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePickerGenerate}
-              disabled={pickerType === "subtask" ? !pickerSubtaskId : !pickerItemId}
-              icon={Wand2}
+  {/* AI Chat */}
+  <div
+    className="
+      card
+      flex
+      min-w-0
+      flex-col
+      p-3
+      sm:p-4
+      md:p-6
+      h-[calc(100vh-11rem)]
+      min-h-[500px]
+      sm:h-[calc(100vh-12rem)]
+      md:h-[calc(100vh-13rem)]
+    "
+  >
+    {/* Messages */}
+    <div
+      ref={scrollRef}
+      className="
+        min-h-0
+        min-w-0
+        flex-1
+        overflow-x-hidden
+        overflow-y-auto
+        pr-1
+        sm:pr-2
+      "
+    >
+      {messages.length === 0 ? (
+        <div
+          className="
+            flex
+            min-h-full
+            w-full
+            flex-col
+            items-center
+            justify-center
+            gap-4
+            px-1
+            py-6
+            text-center
+            sm:px-4
+          "
+        >
+          {/* Icon */}
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 sm:h-12 sm:w-12">
+            <Sparkles size={22} />
+          </span>
+
+          {/* Welcome text */}
+          <div className="w-full max-w-2xl min-w-0">
+            <h3 className="break-words text-base font-semibold text-slate-800 sm:text-lg">
+              Hi
+              {user?.full_name
+                ? `, ${user.full_name.split(" ")[0]}`
+                : ""}! How can I help?
+            </h3>
+
+            <p
+              className="
+                mx-auto
+                mt-1
+                max-w-xl
+                break-words
+                text-xs
+                leading-5
+                text-slate-500
+                sm:text-sm
+                sm:leading-6
+              "
             >
-              Generate
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="inline-flex rounded-lg border border-border bg-canvas p-0.5">
-            {["task", "bug", "subtask"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setPickerType(t)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                  pickerType === t ? "bg-white text-primary-700 shadow-sm" : "text-slate-500"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <div>
-            <label className="label">Project</label>
-            <Select
-              value={pickerProjectId}
-              onChange={setPickerProjectId}
-              placeholder="Select a project"
-              ariaLabel="Project"
-              options={projects.map((p) => ({ value: p.id, label: p.name }))}
-            />
-          </div>
-          <div>
-            <label className="label">
-              {pickerType === "bug" ? "Bug" : pickerType === "subtask" ? "Parent task" : "Task"}
-            </label>
-            {pickerLoading ? (
-              <Loader label="Loading..." />
-            ) : (
-              <Select
-                value={pickerItemId}
-                onChange={setPickerItemId}
-                disabled={!pickerProjectId}
-                placeholder={
-                  pickerProjectId
-                    ? `Select a ${pickerType === "bug" ? "bug" : "task"}`
-                    : "Select a project first"
-                }
-                ariaLabel={pickerType === "bug" ? "Bug" : "Task"}
-                options={pickerItems.map((i) => ({ value: i.id, label: i.title }))}
-              />
-            )}
-            <p className="mt-1 text-xs text-slate-400">
-              {pickerType === "task"
-                ? "Grounded in its description, acceptance criteria, subtasks, and reference screenshots."
-                : pickerType === "bug"
-                ? "Grounded in its recorded fields and screenshot."
-                : "Pick the task this subtask belongs to, then choose the subtask below."}
+              Try one of these, ask your own question, or drag a Task/Bug onto
+              &ldquo;AI Assistant&rdquo; in the sidebar to generate test cases
+              for it.
             </p>
           </div>
 
-          {pickerType === "subtask" && pickerItemId && (
-            <div>
-              <label className="label">Subtask</label>
-              {pickerSubtasksLoading ? (
-                <Loader label="Loading..." />
-              ) : (
-                <Select
-                  value={pickerSubtaskId}
-                  onChange={setPickerSubtaskId}
-                  disabled={pickerSubtasks.length === 0}
-                  placeholder={pickerSubtasks.length ? "Select a subtask" : "This task has no subtasks yet"}
-                  ariaLabel="Subtask"
-                  options={pickerSubtasks.map((i) => ({ value: i.id, label: i.title }))}
+          {/* Suggestions */}
+          <div
+            className="
+              grid
+              w-full
+              max-w-2xl
+              grid-cols-1
+              gap-2
+              sm:grid-cols-2
+            "
+          >
+            {SUGGESTION_CARDS.map((s) => (
+              <button
+                key={s.text}
+                type="button"
+                onClick={() => send(s.text)}
+                className="
+                  flex
+                  min-w-0
+                  items-start
+                  gap-3
+                  rounded-xl
+                  border
+                  border-border
+                  bg-white
+                  px-3
+                  py-3
+                  text-left
+                  text-sm
+                  text-slate-600
+                  transition-colors
+                  hover:border-primary-200
+                  hover:bg-primary-50/40
+                  sm:px-4
+                "
+              >
+                <s.icon
+                  size={16}
+                  className="mt-0.5 shrink-0 text-primary-500"
                 />
+
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words font-medium text-slate-700">
+                    {s.text}
+                  </span>
+
+                  <span className="mt-0.5 block break-words text-xs leading-5 text-slate-400">
+                    {s.hint}
+                  </span>
+                </span>
+              </button>
+            ))}
+
+            {/* Generate test cases */}
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="
+                flex
+                min-w-0
+                items-start
+                gap-3
+                rounded-xl
+                border
+                border-primary-200
+                bg-primary-50/40
+                px-3
+                py-3
+                text-left
+                text-sm
+                text-slate-600
+                transition-colors
+                hover:bg-primary-50
+                sm:px-4
+              "
+            >
+              <Wand2
+                size={16}
+                className="mt-0.5 shrink-0 text-primary-500"
+              />
+
+              <span className="min-w-0 flex-1">
+                <span className="block break-words font-medium text-slate-700">
+                  Generate test cases
+                </span>
+
+                <span className="mt-0.5 block break-words text-xs leading-5 text-slate-400">
+                  From a task or bug
+                </span>
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="min-w-0 space-y-4 py-1">
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              className={`flex min-w-0 gap-2 sm:gap-3 ${
+                m.role === "user" ? "flex-row-reverse" : ""
+              }`}
+            >
+              {/* Avatar */}
+              <span
+                className={`
+                  flex
+                  h-8
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+                  ${
+                    m.role === "user"
+                      ? "bg-slate-100 text-slate-500"
+                      : "bg-primary-50 text-primary-600"
+                  }
+                `}
+              >
+                {m.role === "user" ? (
+                  <UserIcon size={14} />
+                ) : (
+                  <Sparkles size={14} />
+                )}
+              </span>
+
+              {/* Message */}
+              {m.kind === "test-cases" ? (
+                <div className="min-w-0 max-w-[calc(100%-2.5rem)] sm:max-w-[85%] lg:max-w-[75%]">
+                  <TestCaseMessage
+                    msg={m}
+                    projects={projects}
+                    onRegenerate={regenerateTestCases}
+                    onSave={saveTestCases}
+                    regenerating={regenerating}
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`
+                    min-w-0
+                    max-w-[calc(100%-2.5rem)]
+                    break-words
+                    rounded-2xl
+                    px-3
+                    py-2.5
+                    text-sm
+                    leading-5
+                    sm:max-w-[85%]
+                    sm:px-4
+                    sm:leading-6
+                    lg:max-w-[75%]
+                    ${
+                      m.role === "user"
+                        ? "bg-primary-600 text-white"
+                        : "bg-slate-50 text-slate-700"
+                    }
+                  `}
+                  style={{ overflowWrap: "anywhere" }}
+                >
+                  {m.text}
+                </div>
               )}
-              <p className="mt-1 text-xs text-slate-400">
-                Grounded in its own title/description/status plus the parent task&rsquo;s title, description,
-                and acceptance criteria.
-              </p>
+            </div>
+          ))}
+
+          {/* Thinking */}
+          {(sending || regenerating) && (
+            <div className="flex min-w-0 gap-2 sm:gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                <Sparkles size={14} />
+              </span>
+
+              <div className="max-w-[calc(100%-2.5rem)] break-words rounded-2xl bg-slate-50 px-3 py-2.5 text-sm text-slate-400 sm:px-4">
+                {regenerating
+                  ? "Revising test cases..."
+                  : "Thinking..."}
+              </div>
             </div>
           )}
         </div>
-      </Modal>
+      )}
     </div>
+
+    {/* Input */}
+    <form
+      onSubmit={handleSubmit}
+      className="
+        mt-3
+        flex
+        min-w-0
+        items-center
+        gap-2
+        border-t
+        border-border
+        pt-3
+        sm:mt-4
+        sm:pt-4
+      "
+    >
+      <input
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Ask AI anything about your bugs, tasks, or sprints..."
+        maxLength={TEXTAREA_MAX_LENGTH}
+        className="
+          input
+          min-w-0
+          flex-1
+          text-sm
+          sm:text-base
+        "
+        disabled={sending || regenerating}
+      />
+
+      <button
+        type="submit"
+        className="
+          btn-primary
+          flex
+          h-10
+          w-10
+          shrink-0
+          items-center
+          justify-center
+          p-0
+          sm:h-auto
+          sm:w-auto
+          sm:px-4
+          sm:py-2
+        "
+        disabled={
+          sending ||
+          regenerating ||
+          !message.trim()
+        }
+      >
+        <Send size={16} />
+
+        <span className="ml-2 hidden sm:inline">
+          Send
+        </span>
+      </button>
+    </form>
+  </div>
+
+  {/* Generate Test Cases picker modal */}
+  <Modal
+    open={pickerOpen}
+    onClose={() => setPickerOpen(false)}
+    title="Generate test cases"
+    footer={
+      <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button
+          variant="secondary"
+          onClick={() => setPickerOpen(false)}
+          className="w-full sm:w-auto"
+        >
+          Cancel
+        </Button>
+
+        <Button
+          onClick={handlePickerGenerate}
+          disabled={
+            pickerType === "subtask"
+              ? !pickerSubtaskId
+              : !pickerItemId
+          }
+          icon={Wand2}
+          className="w-full sm:w-auto"
+        >
+          Generate
+        </Button>
+      </div>
+    }
+  >
+    <div className="max-h-[65vh] space-y-4 overflow-y-auto pr-1 sm:max-h-none">
+      {/* Type selector */}
+      <div className="w-full overflow-x-auto">
+        <div className="inline-flex min-w-max rounded-lg border border-border bg-canvas p-0.5">
+          {["task", "bug", "subtask"].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setPickerType(t)}
+              className={`
+                rounded-md
+                px-3
+                py-1.5
+                text-xs
+                font-medium
+                capitalize
+                transition-colors
+                ${
+                  pickerType === t
+                    ? "bg-white text-primary-700 shadow-sm"
+                    : "text-slate-500"
+                }
+              `}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Project */}
+      <div className="min-w-0">
+        <label className="label">Project</label>
+
+        <Select
+          value={pickerProjectId}
+          onChange={setPickerProjectId}
+          placeholder="Select a project"
+          ariaLabel="Project"
+          options={projects.map((p) => ({
+            value: p.id,
+            label: p.name,
+          }))}
+        />
+      </div>
+
+      {/* Task / Bug */}
+      <div className="min-w-0">
+        <label className="label">
+          {pickerType === "bug"
+            ? "Bug"
+            : pickerType === "subtask"
+              ? "Parent task"
+              : "Task"}
+        </label>
+
+        {pickerLoading ? (
+          <Loader label="Loading..." />
+        ) : (
+          <Select
+            value={pickerItemId}
+            onChange={setPickerItemId}
+            disabled={!pickerProjectId}
+            placeholder={
+              pickerProjectId
+                ? `Select a ${
+                    pickerType === "bug"
+                      ? "bug"
+                      : "task"
+                  }`
+                : "Select a project first"
+            }
+            ariaLabel={
+              pickerType === "bug"
+                ? "Bug"
+                : "Task"
+            }
+            options={pickerItems.map((i) => ({
+              value: i.id,
+              label: i.title,
+            }))}
+          />
+        )}
+
+        <p className="mt-1 break-words text-xs leading-5 text-slate-400">
+          {pickerType === "task"
+            ? "Grounded in its description, acceptance criteria, subtasks, and reference screenshots."
+            : pickerType === "bug"
+              ? "Grounded in its recorded fields and screenshot."
+              : "Pick the task this subtask belongs to, then choose the subtask below."}
+        </p>
+      </div>
+
+      {/* Subtask */}
+      {pickerType === "subtask" && pickerItemId && (
+        <div className="min-w-0">
+          <label className="label">Subtask</label>
+
+          {pickerSubtasksLoading ? (
+            <Loader label="Loading..." />
+          ) : (
+            <Select
+              value={pickerSubtaskId}
+              onChange={setPickerSubtaskId}
+              disabled={pickerSubtasks.length === 0}
+              placeholder={
+                pickerSubtasks.length
+                  ? "Select a subtask"
+                  : "This task has no subtasks yet"
+              }
+              ariaLabel="Subtask"
+              options={pickerSubtasks.map((i) => ({
+                value: i.id,
+                label: i.title,
+              }))}
+            />
+          )}
+
+          <p className="mt-1 break-words text-xs leading-5 text-slate-400">
+            Grounded in its own title/description/status
+            plus the parent task&rsquo;s title, description,
+            and acceptance criteria.
+          </p>
+        </div>
+      )}
+    </div>
+  </Modal>
+</div>
   );
 }
