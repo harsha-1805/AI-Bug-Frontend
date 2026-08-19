@@ -9,6 +9,7 @@ import Loader from "../components/Loader.jsx";
 import Button from "../components/Button.jsx";
 import { auditService } from "../services/auditService";
 import { getErrorMessage } from "../utils/apiError.js";
+import { formatDateTimeIST } from "../utils/dateTime.js";
 
 const ENTITY_TYPES = ["Project", "Sprint", "Task", "SubTask", "Bug"];
 
@@ -57,7 +58,7 @@ export default function AuditLog() {
       key: "created_at",
       header: "When",
       minWidth: 170,
-      render: (row) => new Date(row.created_at).toLocaleString(),
+      render: (row) => formatDateTimeIST(row.created_at),
     },
     {
       key: "actor_name",

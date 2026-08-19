@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet, UserRound } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -33,7 +33,7 @@ import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHando
 const SEVERITY_TONE = { Critical: "critical", High: "high", Medium: "medium", Low: "low" };
 const STATUS_TONE = { Open: "info", "In Progress": "medium", Resolved: "success", Closed: "neutral" };
 const STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
-const SEVERITIES = ["All", "Critical", "High", "Medium", "Low"];
+const SEVERITIES = ["Critical", "High", "Medium", "Low"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
 
 const emptyForm = {
@@ -68,6 +68,10 @@ export default function Bugs() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
+  // "Assigned to me" — filters the list down to only bugs assigned to the
+  // logged-in user, using the same server-side assigned_to param the
+  // Assign modal already relies on (see bug_service.list_bugs).
+  const [assignedToMe, setAssignedToMe] = useState(false);
   // Universal project filter (Navbar dropdown) — "" = all projects. Shared
   // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
   // see context/ProjectFilterContext.jsx.
@@ -97,15 +101,14 @@ export default function Bugs() {
         search,
         status: statusFilter || undefined,
         projectId: projectFilter ? Number(projectFilter) : undefined,
+        assignedTo: assignedToMe && user?.id ? user.id : undefined,
         pageSize: 50,
       });
       // severity has no server-side filter param today — filter client-side
       // rather than adding a query param the backend doesn't accept yet.
-      debugger
-      const items =
-        !severityFilter || severityFilter === "All"
-          ? data.items
-          : data.items.filter((b) => b.severity === severityFilter);
+      const items = severityFilter
+        ? data.items.filter((b) => b.severity === severityFilter)
+        : data.items;
       setBugs(items);
       setTotal(data.total);
     } catch (err) {
@@ -113,7 +116,7 @@ export default function Bugs() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, severityFilter, projectFilter]);
+  }, [search, statusFilter, severityFilter, projectFilter, assignedToMe, user?.id]);
 
   useEffect(() => {
     load();
@@ -135,7 +138,7 @@ export default function Bugs() {
     // GET /api/v1/projects -> project_access.accessible_project_ids), so
     // every dropdown fed from `projects` automatically only shows
     // projects this user can actually use.
-    projectService.listProjects({ pageSize: 100 }).then((data) => setProjects(data.items)).catch(() => { });
+    projectService.listProjects({ pageSize: 100 }).then((data) => setProjects(data.items)).catch(() => {});
   }, []);
 
   // Whenever the form's selected project changes, refresh which sprints
@@ -244,7 +247,15 @@ export default function Bugs() {
   const changeStatus = async (bug, status) => {
     try {
       await bugService.updateBug(bug.id, { status });
-      toast.success(`Marked as ${status}`);
+      // Backend auto-reassigns Open/In Progress -> Resolved transitions
+      // back to the reporter (QA) for validation before it can be
+      // Closed — see app/services/bug_service.py:update_bug. Reflect
+      // that in the toast so it's not a silent reassignment.
+      if (status === "Resolved" && bug.status !== "Resolved" && bug.reporter) {
+        toast.success(`Marked as Resolved — sent back to ${bug.reporter.full_name} for validation`);
+      } else {
+        toast.success(`Marked as ${status}`);
+      }
       load();
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to update status"));
@@ -349,14 +360,14 @@ export default function Bugs() {
             </p>
             <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
           </button>
-          {/* <button
+          <button
             type="button"
             onClick={() => setPreviewBug(row)}
             title="Preview"
             className="ml-auto shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-primary-600"
           >
             <Eye size={15} />
-          </button> */}
+          </button>
         </div>
       ),
     },
@@ -419,11 +430,10 @@ export default function Bugs() {
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "",
       render: (row) => (
         <Dropdown
           label={<MoreVertical size={16} />}
-          showChevron={false}
           items={[
             { label: "Edit bug", icon: Pencil, onClick: () => openEdit(row) },
             { label: "Assign", icon: UserPlus, onClick: () => openAssign(row) },
@@ -438,9 +448,6 @@ export default function Bugs() {
       ),
     },
   ];
-
-
-
 
   return (
     <div>
@@ -477,6 +484,19 @@ export default function Bugs() {
           ariaLabel="Filter by severity"
           options={SEVERITIES.map((s) => ({ value: s, label: s }))}
         />
+        <button
+          type="button"
+          onClick={() => setAssignedToMe((v) => !v)}
+          aria-pressed={assignedToMe}
+          title="Show only bugs assigned to me"
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            assignedToMe
+              ? "border-primary-200 bg-primary-50 text-primary-700"
+              : "border-border bg-white text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <UserRound size={14} /> Assigned to me
+        </button>
         <span className="text-sm text-slate-400">
           {bugs.length} of {total} bug{total === 1 ? "" : "s"}
         </span>

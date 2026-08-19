@@ -15,6 +15,7 @@ import {
   UploadCloud,
   FileSpreadsheet,
   Eye,
+  UserRound,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import Button from "../components/Button.jsx";
@@ -126,11 +127,17 @@ export default function Tasks() {
   const [attachments, setAttachments] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
+  // "Assigned to me" — filters the board/table down to only tasks
+  // assigned to the logged-in user, using the same server-side
+  // assigned_to param the assignment dropdown already relies on.
+  const [assignedToMe, setAssignedToMe] = useState(false);
+
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
       const data = await taskService.listTasks({
         projectId: selectedProjectId ? Number(selectedProjectId) : undefined,
+        assignedTo: assignedToMe && user?.id ? user.id : undefined,
       });
       setTasks(data);
     } catch (err) {
@@ -138,7 +145,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, assignedToMe, user?.id]);
 
   useEffect(() => {
     loadTasks();
@@ -485,6 +492,20 @@ export default function Tasks() {
             across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant) —
             see components/Navbar.jsx. */}
 
+        <button
+          type="button"
+          onClick={() => setAssignedToMe((v) => !v)}
+          aria-pressed={assignedToMe}
+          title="Show only tasks assigned to me"
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            assignedToMe
+              ? "border-primary-200 bg-primary-50 text-primary-700"
+              : "border-border bg-white text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <UserRound size={14} /> Assigned to me
+        </button>
+
         {/* View toggle — kanban (drag-and-drop) vs table (collapsible list) */}
         <div className="inline-flex rounded-lg border border-border bg-white p-0.5">
           <button
@@ -536,20 +557,9 @@ export default function Tasks() {
               <div
                 key={col.key}
                 onDragOver={handleColumnDragOver(col.key)}
-                onDragLeave={() =>
-                  setDragOverColumn((c) => (c === col.key ? null : c))
-                }
+                onDragLeave={() => setDragOverColumn((c) => (c === col.key ? null : c))}
                 onDrop={handleColumnDrop(col.key)}
-                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${col.key === "To Do"
-                    ? "bg-blue-50/50"
-                    : col.key === "In Progress"
-                      ? "bg-amber-50/50"
-                      : col.key === "Done"
-                        ? "bg-emerald-50/50"
-                        : "bg-slate-50/50"
-                  } ${isDragOver
-                    ? "ring-2 ring-primary-400 bg-primary-50/40"
-                    : ""
+                className={`card flex min-h-[320px] flex-col p-4 transition-colors ${isDragOver ? "ring-2 ring-primary-400 bg-primary-50/40" : ""
                   }`}
               >
                 <div className="mb-3 flex items-center justify-between">
@@ -577,12 +587,12 @@ export default function Tasks() {
                         <div className="mb-1.5 flex items-start justify-between gap-2">
                           <a
                             className="
-                              cursor-pointer
-                              text-sm font-medium
-                              text-slate-800
-                              transition-colors
-                              hover:text-primary-600
-                            "
+    cursor-pointer
+    text-sm font-medium
+    text-slate-800
+    transition-colors
+    hover:text-primary-600
+  "
                             onClick={() =>
                               navigate(`/tasks/${task.id}/preview`)
                             }
@@ -614,7 +624,6 @@ export default function Tasks() {
                             </button>
                             <Dropdown
                               label={<MoreVertical size={14} />}
-                              showChevron={false}
                               items={[
                                 { label: "Preview", icon: Eye, onClick: () => navigate(`/tasks/${task.id}/preview`) },
                                 { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
@@ -924,8 +933,8 @@ export default function Tasks() {
                       ) : (
                         <span
                           className={`block cursor-pointer truncate text-sm transition-colors ${st.status === "Done"
-                            ? "text-slate-400 line-through hover:text-primary-400"
-                            : "text-slate-700 hover:text-primary-600"
+                              ? "text-slate-400 line-through hover:text-primary-400"
+                              : "text-slate-700 hover:text-primary-600"
                             }`}
                           title="Click to preview • Double-click to rename"
                           onClick={() =>

@@ -11,7 +11,7 @@ import {
   Layers3,
   TrendingUp,
 } from "lucide-react";
-
+ 
 import {
   ResponsiveContainer,
   LineChart,
@@ -24,27 +24,28 @@ import {
   Pie,
   Cell,
 } from "recharts";
-
+ 
 import PageHeader from "../components/PageHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
 import ChartCard from "../components/ChartCard.jsx";
 import Loader from "../components/Loader.jsx";
-
+ 
 import { dashboardService } from "../services/dashboardService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useProjectFilter } from "../hooks/useProjectFilter";
-
+import { formatDateTimeIST } from "../utils/dateTime.js";
+ 
 const STATUS_COLORS = {
   Open: "#f59e0b",
   "In Progress": "#0ea5e9",
   Resolved: "#10b981",
   Closed: "#94a3b8",
 };
-
+ 
 /* =========================================================
    WIDGET COLOR THEMES
 ========================================================= */
-
+ 
 const WIDGET_COLORS = {
   bug: {
     border: "border-amber-200",
@@ -52,28 +53,28 @@ const WIDGET_COLORS = {
     icon: "bg-amber-100 text-amber-600",
     accent: "bg-amber-500",
   },
-
+ 
   ai: {
     border: "border-violet-200",
     header: "bg-gradient-to-r from-violet-50 to-white",
     icon: "bg-violet-100 text-violet-600",
     accent: "bg-violet-500",
   },
-
+ 
   activity: {
     border: "border-sky-200",
     header: "bg-gradient-to-r from-sky-50 to-white",
     icon: "bg-sky-100 text-sky-600",
     accent: "bg-sky-500",
   },
-
+ 
   modules: {
     border: "border-rose-200",
     header: "bg-gradient-to-r from-rose-50 to-white",
     icon: "bg-rose-100 text-rose-600",
     accent: "bg-rose-500",
   },
-
+ 
   trend: {
     border: "border-emerald-200",
     header: "bg-gradient-to-r from-emerald-50 to-white",
@@ -81,51 +82,58 @@ const WIDGET_COLORS = {
     accent: "bg-emerald-500",
   },
 };
-
+ 
 /* =========================================================
    DASHBOARD
 ========================================================= */
-
+ 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
-
+ 
   /*
    * Universal project filter.
    * "" means all projects.
    */
-  const { selectedProjectId: projectId } = useProjectFilter();
-
+  const { selectedProjectId: projectId } =
+    useProjectFilter();
+ 
   /* =========================================================
      LOAD DASHBOARD
   ========================================================== */
-
+ 
   const loadSummary = useCallback(async () => {
     setLoading(true);
-
+ 
     try {
-      const data = await dashboardService.getSummary({
-        projectId: projectId ? Number(projectId) : undefined,
-      });
-
+      const data =
+        await dashboardService.getSummary({
+          projectId: projectId
+            ? Number(projectId)
+            : undefined,
+        });
+ 
       setSummary(data);
     } catch (err) {
       toast.error(
-        getErrorMessage(err, "Failed to load dashboard")
+        getErrorMessage(
+          err,
+          "Failed to load dashboard"
+        )
       );
     } finally {
       setLoading(false);
     }
   }, [projectId]);
-
+ 
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
-
+ 
   /* =========================================================
      LOADING STATE
   ========================================================== */
-
+ 
   if (loading && !summary) {
     return (
       <div className="min-w-0 w-full">
@@ -133,7 +141,7 @@ export default function Dashboard() {
           title="Dashboard"
           subtitle="An overview of bugs, tasks, and sprints across your projects"
         />
-
+ 
         <div
           className="
             card
@@ -150,13 +158,13 @@ export default function Dashboard() {
       </div>
     );
   }
-
+ 
   if (!summary) return null;
-
+ 
   /* =========================================================
      SUMMARY DATA
   ========================================================== */
-
+ 
   const {
     stat_cards: stats,
     bug_status_breakdown = [],
@@ -165,16 +173,17 @@ export default function Dashboard() {
     recent_activity = [],
     ai_insights = [],
   } = summary;
-
-  const totalBugs = bug_status_breakdown.reduce(
-    (sum, item) => sum + item.count,
-    0
-  );
-
+ 
+  const totalBugs =
+    bug_status_breakdown.reduce(
+      (sum, item) => sum + item.count,
+      0
+    );
+ 
   /* =========================================================
      STAT CARDS
   ========================================================== */
-
+ 
   const statCards = [
     {
       key: "total",
@@ -212,31 +221,31 @@ export default function Dashboard() {
       tone: "text-sky-600 bg-sky-50",
     },
   ];
-
+ 
   /* =========================================================
      RENDER
   ========================================================== */
-
+ 
   return (
     <div className="min-w-0 w-full">
       {/* =======================================================
           PAGE HEADER
       ======================================================== */}
-
+ 
       <PageHeader
         title="Dashboard"
         subtitle="An overview of bugs, tasks, and sprints across your projects"
       />
-
+ 
       {/* =======================================================
           STAT CARDS
-
+ 
           Mobile  -> 1
           Small   -> 2
           Medium  -> 3
           XL      -> 5
       ======================================================== */}
-
+ 
       <div
         className="
           grid
@@ -259,19 +268,19 @@ export default function Dashboard() {
           />
         ))}
       </div>
-
+ 
       {/* =======================================================
           TOP THREE WIDGETS
-
+ 
           Mobile  -> 1
           Tablet  -> 2
           Desktop -> 3
-
+ 
           Fixed height: 320px
           Header fixed
           Content scrollable
       ======================================================== */}
-
+ 
       <div
         className="
           mt-6
@@ -286,7 +295,7 @@ export default function Dashboard() {
         {/* =====================================================
             BUG STATUS
         ====================================================== */}
-
+ 
         <FixedWidget
           title="Bug Status"
           color="bug"
@@ -299,45 +308,36 @@ export default function Dashboard() {
             />
           ) : (
             <div className="w-full min-w-0">
-              {/*
-                IMPORTANT RESPONSIVE FIX:
-
-                Keep the chart and status list stacked until
-                lg. This prevents the Bug Status widget from
-                becoming cramped at browser zoom levels
-                between 100% and 150%.
-              */}
               <div
                 className="
-                  grid
-                  w-full
-                  min-w-0
-                  grid-cols-1
-                  items-center
-                  gap-4
-                  sm:gap-5
-                  lg:grid-cols-[minmax(140px,0.9fr)_minmax(0,1.1fr)]
-                  lg:gap-5
-                "
+          grid
+          w-full
+          min-w-0
+          grid-cols-1
+          items-center
+          gap-5
+          sm:gap-6
+          md:grid-cols-[minmax(140px,0.8fr)_minmax(0,1.2fr)]
+          lg:grid-cols-[minmax(150px,0.9fr)_minmax(0,1.1fr)]
+        "
               >
                 {/* Pie chart */}
                 <div
                   className="
-                    relative
-                    mx-auto
-                    h-32
-                    w-32
-                    shrink-0
-                    sm:h-36
-                    sm:w-36
-                    lg:h-40
-                    lg:w-40
-                  "
+            relative
+            mx-auto
+            h-36
+            w-36
+            shrink-0
+            sm:h-40
+            sm:w-40
+            md:mx-0
+            md:justify-self-center
+            lg:h-40
+            lg:w-40
+          "
                 >
-                  <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                  >
+                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={bug_status_breakdown}
@@ -351,8 +351,7 @@ export default function Dashboard() {
                           <Cell
                             key={entry.status}
                             fill={
-                              STATUS_COLORS[entry.status] ||
-                              "#94a3b8"
+                              STATUS_COLORS[entry.status] || "#94a3b8"
                             }
                             stroke="none"
                           />
@@ -360,123 +359,120 @@ export default function Dashboard() {
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
-
+ 
                   {/* Center text */}
                   <div
                     className="
-                      pointer-events-none
-                      absolute
-                      inset-0
-                      flex
-                      flex-col
-                      items-center
-                      justify-center
-                    "
+              pointer-events-none
+              absolute
+              inset-0
+              flex
+              flex-col
+              items-center
+              justify-center
+            "
                   >
                     <span
                       className="
-                        text-xl
-                        font-semibold
-                        leading-none
-                        text-slate-800
-                      "
+                text-xl
+                font-semibold
+                leading-none
+                text-slate-800
+              "
                     >
                       {totalBugs}
                     </span>
-
+ 
                     <span
                       className="
-                        mt-1
-                        text-xs
-                        leading-none
-                        text-slate-400
-                      "
+                mt-1
+                text-xs
+                leading-none
+                text-slate-400
+              "
                     >
                       Total
                     </span>
                   </div>
                 </div>
-
+ 
                 {/* Status list */}
                 <ul
                   className="
-                    min-w-0
-                    w-full
-                    space-y-1.5
-                  "
+            min-w-0
+            w-full
+            space-y-1.5
+          "
                 >
                   {bug_status_breakdown.map((entry) => {
                     const percentage = totalBugs
-                      ? Math.round(
-                          (entry.count / totalBugs) * 100
-                        )
+                      ? Math.round((entry.count / totalBugs) * 100)
                       : 0;
-
+ 
                     return (
                       <li
                         key={entry.status}
                         className="
-                          flex
-                          min-w-0
-                          w-full
-                          items-center
-                          justify-between
-                          gap-3
-                          rounded-lg
-                          px-2
-                          py-2
-                          text-sm
-                          transition-colors
-                          hover:bg-amber-50
-                        "
+                  flex
+                  min-w-0
+                  w-full
+                  items-center
+                  justify-between
+                  gap-3
+                  rounded-lg
+                  px-2
+                  py-2
+                  text-sm
+                  transition-colors
+                  hover:bg-amber-50
+                "
                       >
                         {/* Status name */}
                         <span
                           className="
-                            flex
-                            min-w-0
-                            flex-1
-                            items-center
-                            gap-2
-                          "
+                    flex
+                    min-w-0
+                    flex-1
+                    items-center
+                    gap-2
+                  "
                         >
                           <span
                             className="
-                              h-2
-                              w-2
-                              shrink-0
-                              rounded-full
-                            "
+                      h-2
+                      w-2
+                      shrink-0
+                      rounded-full
+                    "
                             style={{
                               backgroundColor:
                                 STATUS_COLORS[entry.status] ||
                                 "#94a3b8",
                             }}
                           />
-
+ 
                           <span
                             className="
-                              min-w-0
-                              truncate
-                              text-slate-600
-                            "
+                      min-w-0
+                      truncate
+                      text-slate-600
+                    "
                             title={entry.status}
                           >
                             {entry.status}
                           </span>
                         </span>
-
+ 
                         {/* Count + percentage */}
                         <span
                           className="
-                            shrink-0
-                            whitespace-nowrap
-                            font-medium
-                            text-slate-700
-                          "
+                    shrink-0
+                    whitespace-nowrap
+                    font-medium
+                    text-slate-700
+                  "
                         >
                           {entry.count}
-
                           <span className="ml-1 text-slate-400">
                             ({percentage}%)
                           </span>
@@ -489,11 +485,11 @@ export default function Dashboard() {
             </div>
           )}
         </FixedWidget>
-
+ 
         {/* =====================================================
             AI INSIGHTS
         ====================================================== */}
-
+ 
         <FixedWidget
           title="AI Insights"
           color="ai"
@@ -506,88 +502,90 @@ export default function Dashboard() {
             />
           ) : (
             <ul className="space-y-3">
-              {ai_insights.map((insight, index) => (
-                <li
-                  key={index}
-                  className="
-                    group
-                    min-w-0
-                    rounded-xl
-                    border
-                    border-violet-100
-                    bg-gradient-to-br
-                    from-violet-50
-                    via-white
-                    to-fuchsia-50
-                    px-3
-                    py-3
-                    shadow-sm
-                    transition-all
-                    duration-200
-                    hover:-translate-y-0.5
-                    hover:border-violet-200
-                    hover:shadow-md
-                  "
-                >
-                  <div className="flex min-w-0 gap-3">
-                    <div
-                      className="
-                        flex
-                        h-8
-                        w-8
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-violet-100
-                        text-violet-600
-                      "
-                    >
-                      <Sparkles size={15} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p
+              {ai_insights.map(
+                (insight, index) => (
+                  <li
+                    key={index}
+                    className="
+                      group
+                      min-w-0
+                      rounded-xl
+                      border
+                      border-violet-100
+                      bg-gradient-to-br
+                      from-violet-50
+                      via-white
+                      to-fuchsia-50
+                      px-3
+                      py-3
+                      shadow-sm
+                      transition-all
+                      duration-200
+                      hover:-translate-y-0.5
+                      hover:border-violet-200
+                      hover:shadow-md
+                    "
+                  >
+                    <div className="flex min-w-0 gap-3">
+                      <div
                         className="
-                          break-words
-                          whitespace-normal
-                          text-sm
-                          font-medium
-                          leading-5
-                          text-slate-700
-                          transition-colors
-                          group-hover:text-violet-700
+                          flex
+                          h-8
+                          w-8
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          bg-violet-100
+                          text-violet-600
                         "
                       >
-                        {insight.text}
-                      </p>
-
-                      {insight.meta && (
+                        <Sparkles size={15} />
+                      </div>
+ 
+                      <div className="min-w-0 flex-1">
                         <p
                           className="
-                            mt-1
                             break-words
                             whitespace-normal
-                            text-xs
+                            text-sm
+                            font-medium
                             leading-5
-                            text-slate-500
+                            text-slate-700
+                            transition-colors
+                            group-hover:text-violet-700
                           "
                         >
-                          {insight.meta}
+                          {insight.text}
                         </p>
-                      )}
+ 
+                        {insight.meta && (
+                          <p
+                            className="
+                              mt-1
+                              break-words
+                              whitespace-normal
+                              text-xs
+                              leading-5
+                              text-slate-500
+                            "
+                          >
+                            {insight.meta}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                )
+              )}
             </ul>
           )}
         </FixedWidget>
-
+ 
         {/* =====================================================
             RECENT ACTIVITY
         ====================================================== */}
-
+ 
         <FixedWidget
           title="Recent Activity"
           color="activity"
@@ -605,87 +603,87 @@ export default function Dashboard() {
                 space-y-2
               "
             >
-              {recent_activity.map((item) => (
-                <li
-                  key={item.id}
-                  className="
-                    group
-                    min-w-0
-                    rounded-lg
-                    border
-                    border-transparent
-                    p-2.5
-                    transition-all
-                    duration-200
-                    hover:border-sky-100
-                    hover:bg-sky-50/50
-                  "
-                >
-                  <div
+              {recent_activity.map(
+                (item) => (
+                  <li
+                    key={item.id}
                     className="
-                      flex
+                      group
                       min-w-0
-                      gap-2.5
+                      rounded-lg
+                      border
+                      border-transparent
+                      p-2.5
+                      transition-all
+                      duration-200
+                      hover:border-sky-100
+                      hover:bg-sky-50/50
                     "
                   >
-                    <span
+                    <div
                       className="
-                        mt-1.5
-                        h-2
-                        w-2
-                        shrink-0
-                        rounded-full
-                        bg-sky-400
-                        ring-4
-                        ring-sky-50
+                        flex
+                        min-w-0
+                        gap-2.5
                       "
-                    />
-
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="
-                          min-w-0
-                          break-words
-                          whitespace-normal
-                          text-sm
-                          leading-5
-                          text-slate-600
-                          transition-colors
-                          group-hover:text-sky-700
-                        "
-                      >
-                        {item.description}
-                      </p>
-
-                      <p
+                    >
+                      <span
                         className="
                           mt-1.5
-                          break-words
-                          text-xs
-                          leading-4
-                          text-slate-400
+                          h-2
+                          w-2
+                          shrink-0
+                          rounded-full
+                          bg-sky-400
+                          ring-4
+                          ring-sky-50
                         "
-                      >
-                        {new Date(
-                          item.created_at
-                        ).toLocaleString()}
-                      </p>
+                      />
+ 
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="
+                            min-w-0
+                            break-words
+                            whitespace-normal
+                            text-sm
+                            leading-5
+                            text-slate-600
+                            transition-colors
+                            group-hover:text-sky-700
+                          "
+                        >
+                          {item.description}
+                        </p>
+ 
+                        <p
+                          className="
+                            mt-1.5
+                            break-words
+                            text-xs
+                            leading-4
+                            text-slate-400
+                          "
+                        >
+                          {formatDateTimeIST(item.created_at)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                )
+              )}
             </ul>
           )}
         </FixedWidget>
       </div>
-
+ 
       {/* =======================================================
           BOTTOM WIDGETS
-
+         
           Mobile  -> 1
           Desktop -> 2
       ======================================================== */}
-
+ 
       <div
         className="
           mt-6
@@ -699,7 +697,7 @@ export default function Dashboard() {
         {/* =====================================================
             TOP BUGGY MODULES
         ====================================================== */}
-
+ 
         <ColorfulChartCard
           title="Top Buggy Modules"
           color="modules"
@@ -720,98 +718,102 @@ export default function Dashboard() {
                 pr-1
               "
             >
-              {top_buggy_modules.map((mod) => {
-                const max =
-                  top_buggy_modules[0]?.count || 0;
-
-                const pct = max
-                  ? Math.round(
-                      (mod.count / max) * 100
+              {top_buggy_modules.map(
+                (mod) => {
+                  const max =
+                    top_buggy_modules[0]
+                      ?.count || 0;
+ 
+                  const pct = max
+                    ? Math.round(
+                      (mod.count / max) *
+                      100
                     )
-                  : 0;
-
-                return (
-                  <div
-                    key={mod.module}
-                    className="
-                      min-w-0
-                      rounded-lg
-                      p-2
-                      transition-colors
-                      hover:bg-rose-50/50
-                    "
-                  >
+                    : 0;
+ 
+                  return (
                     <div
+                      key={mod.module}
                       className="
-                        mb-1
-                        flex
                         min-w-0
-                        items-start
-                        justify-between
-                        gap-3
-                        text-sm
-                      "
-                    >
-                      <span
-                        className="
-                          min-w-0
-                          break-words
-                          text-slate-600
-                        "
-                      >
-                        {mod.module}
-                      </span>
-
-                      <span
-                        className="
-                          shrink-0
-                          rounded-md
-                          bg-rose-50
-                          px-2
-                          py-0.5
-                          font-medium
-                          text-rose-600
-                        "
-                      >
-                        {mod.count}
-                      </span>
-                    </div>
-
-                    <div
-                      className="
-                        h-2
-                        w-full
-                        overflow-hidden
-                        rounded-full
-                        bg-rose-50
+                        rounded-lg
+                        p-2
+                        transition-colors
+                        hover:bg-rose-50/50
                       "
                     >
                       <div
                         className="
-                          h-full
-                          rounded-full
-                          bg-gradient-to-r
-                          from-rose-500
-                          to-pink-500
-                          transition-all
-                          duration-500
+                          mb-1
+                          flex
+                          min-w-0
+                          items-start
+                          justify-between
+                          gap-3
+                          text-sm
                         "
-                        style={{
-                          width: `${pct}%`,
-                        }}
-                      />
+                      >
+                        <span
+                          className="
+                            min-w-0
+                            break-words
+                            text-slate-600
+                          "
+                        >
+                          {mod.module}
+                        </span>
+ 
+                        <span
+                          className="
+                            shrink-0
+                            rounded-md
+                            bg-rose-50
+                            px-2
+                            py-0.5
+                            font-medium
+                            text-rose-600
+                          "
+                        >
+                          {mod.count}
+                        </span>
+                      </div>
+ 
+                      <div
+                        className="
+                          h-2
+                          w-full
+                          overflow-hidden
+                          rounded-full
+                          bg-rose-50
+                        "
+                      >
+                        <div
+                          className="
+                            h-full
+                            rounded-full
+                            bg-gradient-to-r
+                            from-rose-500
+                            to-pink-500
+                            transition-all
+                            duration-500
+                          "
+                          style={{
+                            width: `${pct}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                }
+              )}
             </div>
           )}
         </ColorfulChartCard>
-
+ 
         {/* =====================================================
             BUG TREND
         ====================================================== */}
-
+ 
         <ColorfulChartCard
           title="Bug Trend (30 days)"
           color="trend"
@@ -846,7 +848,7 @@ export default function Dashboard() {
                     vertical={false}
                     stroke="#eef0f4"
                   />
-
+ 
                   <XAxis
                     dataKey="date"
                     tick={{
@@ -865,7 +867,7 @@ export default function Dashboard() {
                       )
                     )}
                   />
-
+ 
                   <YAxis
                     tick={{
                       fontSize: 12,
@@ -876,7 +878,7 @@ export default function Dashboard() {
                     allowDecimals={false}
                     width={30}
                   />
-
+ 
                   <Tooltip
                     contentStyle={{
                       borderRadius: "10px",
@@ -886,7 +888,7 @@ export default function Dashboard() {
                         "0 4px 12px rgba(15, 23, 42, 0.08)",
                     }}
                   />
-
+ 
                   <Line
                     type="monotone"
                     dataKey="created"
@@ -896,7 +898,7 @@ export default function Dashboard() {
                     activeDot={{ r: 4 }}
                     name="Created"
                   />
-
+ 
                   <Line
                     type="monotone"
                     dataKey="resolved"
@@ -915,11 +917,11 @@ export default function Dashboard() {
     </div>
   );
 }
-
+ 
 /* =========================================================
    COLORFUL STAT CARD
 ========================================================= */
-
+ 
 function ColorfulStatCard({
   icon: Icon,
   iconTone,
@@ -971,7 +973,7 @@ function ColorfulStatCard({
         >
           <Icon size={19} />
         </div>
-
+ 
         <div className="min-w-0 flex-1">
           <p
             className="
@@ -983,7 +985,7 @@ function ColorfulStatCard({
           >
             {label}
           </p>
-
+ 
           <p
             className="
               mt-2
@@ -1001,16 +1003,16 @@ function ColorfulStatCard({
     </div>
   );
 }
-
+ 
 /* =========================================================
    FIXED COLORFUL WIDGET
-
+ 
    - Fixed height: 320px
    - Header does not scroll
    - Content scrolls
    - Responsive width
 ========================================================= */
-
+ 
 function FixedWidget({
   title,
   children,
@@ -1021,7 +1023,7 @@ function FixedWidget({
   const styles =
     WIDGET_COLORS[color] ||
     WIDGET_COLORS.bug;
-
+ 
   return (
     <div
       className={`
@@ -1045,6 +1047,7 @@ function FixedWidget({
       `}
     >
       {/* Top color accent */}
+ 
       <div
         className={`
           absolute
@@ -1055,8 +1058,9 @@ function FixedWidget({
           ${styles.accent}
         `}
       />
-
+ 
       {/* Header */}
+ 
       <div
         className={`
           flex
@@ -1097,7 +1101,7 @@ function FixedWidget({
               {icon}
             </div>
           )}
-
+ 
           <h2
             className="
               min-w-0
@@ -1111,15 +1115,16 @@ function FixedWidget({
             {title}
           </h2>
         </div>
-
+ 
         {action && (
           <div className="shrink-0">
             {action}
           </div>
         )}
       </div>
-
+ 
       {/* Scrollable content */}
+ 
       <div
         className="
           min-h-0
@@ -1131,8 +1136,10 @@ function FixedWidget({
           py-4
           sm:px-5
           sm:py-4
+ 
           [scrollbar-width:thin]
           [scrollbar-color:#cbd5e1_transparent]
+ 
           [&::-webkit-scrollbar]:w-1.5
           [&::-webkit-scrollbar-track]:bg-transparent
           [&::-webkit-scrollbar-thumb]:rounded-full
@@ -1145,11 +1152,11 @@ function FixedWidget({
     </div>
   );
 }
-
+ 
 /* =========================================================
    COLORFUL CHART CARD
 ========================================================= */
-
+ 
 function ColorfulChartCard({
   title,
   children,
@@ -1159,7 +1166,7 @@ function ColorfulChartCard({
   const styles =
     WIDGET_COLORS[color] ||
     WIDGET_COLORS.modules;
-
+ 
   return (
     <div
       className={`
@@ -1179,6 +1186,7 @@ function ColorfulChartCard({
       `}
     >
       {/* Top accent */}
+ 
       <div
         className={`
           absolute
@@ -1189,8 +1197,9 @@ function ColorfulChartCard({
           ${styles.accent}
         `}
       />
-
+ 
       {/* Header */}
+ 
       <div
         className={`
           flex
@@ -1222,7 +1231,7 @@ function ColorfulChartCard({
             {icon}
           </div>
         )}
-
+ 
         <h2
           className="
             min-w-0
@@ -1236,8 +1245,9 @@ function ColorfulChartCard({
           {title}
         </h2>
       </div>
-
+ 
       {/* Content */}
+ 
       <div
         className="
           min-w-0
@@ -1250,11 +1260,11 @@ function ColorfulChartCard({
     </div>
   );
 }
-
+ 
 /* =========================================================
    EMPTY WIDGET
 ========================================================= */
-
+ 
 function EmptyWidget({
   title,
   description,
@@ -1289,7 +1299,7 @@ function EmptyWidget({
           —
         </span>
       </div>
-
+ 
       <p
         className="
           text-sm
@@ -1299,7 +1309,7 @@ function EmptyWidget({
       >
         {title}
       </p>
-
+ 
       {description && (
         <p
           className="
@@ -1316,3 +1326,4 @@ function EmptyWidget({
     </div>
   );
 }
+ 

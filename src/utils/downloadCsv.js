@@ -14,7 +14,10 @@ export function downloadCsv(csvText, label = "test-cases") {
     .replace(/[^a-z0-9-_]/g, "")
     .slice(0, 80);
 
-  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+  // Leading UTF-8 BOM so Excel renders non-ASCII characters correctly
+  // instead of falling back to the system codepage and showing garbled
+  // symbols in place of things like curly quotes or accented names.
+  const blob = new Blob(["\ufeff" + csvText], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
