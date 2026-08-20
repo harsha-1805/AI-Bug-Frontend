@@ -624,6 +624,7 @@ export default function Tasks() {
                             </button>
                             <Dropdown
                               label={<MoreVertical size={14} />}
+                              showChevron={false}
                               items={[
                                 { label: "Preview", icon: Eye, onClick: () => navigate(`/tasks/${task.id}/preview`) },
                                 { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },

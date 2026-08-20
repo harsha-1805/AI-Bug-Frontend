@@ -29,7 +29,7 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Log in to your BugPilot AI workspace">
+    <AuthLayout title="Welcome back" subtitle="Log in to your Project Tracker workspace">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
           label="Email address"

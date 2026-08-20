@@ -41,7 +41,7 @@ export default function MultiSelectCheckboxes({
             }`}
           >
             <span
-              className={`mt-0.5 flex h-4.5 w-4.5 flex-shrink-0 items-center justify-center rounded border transition-colors ${
+              className={`mt-0.5 flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded border transition-colors ${
                 checked ? "border-primary-600 bg-primary-600" : "border-slate-300 bg-white"
               }`}
             >

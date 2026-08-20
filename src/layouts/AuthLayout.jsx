@@ -50,7 +50,7 @@ export default function AuthLayout({ children, title, subtitle }) {
 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5065ff] shadow-lg shadow-indigo-950/30">
 <Bot size={29} strokeWidth={2.25} />
 </div>
-<span className="text-4xl font-bold tracking-tight">BugPilot AI</span>
+<span className="text-4xl font-bold tracking-tight">Project Tracker</span>
 </div>
 <p className="mt-5 text-base leading-7 text-indigo-200">Manage bugs smarter with your AI-powered workspace.</p>
 </div>

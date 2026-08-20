@@ -5,7 +5,6 @@ import {
   Download,
   Trash2,
   Eye,
-  X,
   ChevronDown,
   ChevronUp,
   Filter,
@@ -244,16 +243,16 @@ export default function TestCasesLibrary() {
       .catch(() => {});
   }, []);
 
-  // Load tasks when project filter changes
+  // Load tasks when project filter changes. When no project is selected
+  // (Navbar's "All Projects"), still load tasks — across every project the
+  // user has access to — instead of leaving the filter empty and disabled.
+  // Previously this bailed out to an empty list here, which made the "All
+  // tasks" dropdown look broken/unusable whenever no project was picked.
   useEffect(() => {
     setTaskFilter("");
-    if (!projectFilter) {
-      setTasks([]);
-      return;
-    }
     setTasksLoading(true);
     taskService
-      .listTasks({ projectId: Number(projectFilter) })
+      .listTasks(projectFilter ? { projectId: Number(projectFilter) } : {})
       .then(setTasks)
       .catch(() => setTasks([]))
       .finally(() => setTasksLoading(false));
@@ -309,29 +308,12 @@ export default function TestCasesLibrary() {
           className="w-56"
           value={taskFilter}
           onChange={setTaskFilter}
-          disabled={!projectFilter || tasksLoading}
-          placeholder={
-            !projectFilter
-              ? "Select a project first"
-              : tasksLoading
-              ? "Loading tasks…"
-              : "All tasks"
-          }
+          disabled={tasksLoading}
+          clearable
+          placeholder={tasksLoading ? "Loading tasks…" : "All tasks"}
           ariaLabel="Filter by task"
-          options={[
-            { value: "", label: "All tasks" },
-            ...tasks.map((t) => ({ value: t.id, label: t.title })),
-          ]}
+          options={tasks.map((t) => ({ value: t.id, label: t.title }))}
         />
-        {taskFilter && (
-          <button
-            type="button"
-            onClick={() => setTaskFilter("")}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
-          >
-            <X size={13} /> Clear filters
-          </button>
-        )}
         <span className="ml-auto text-xs text-slate-400">{records.length} record{records.length !== 1 ? "s" : ""}</span>
       </div>
 
@@ -351,7 +333,8 @@ export default function TestCasesLibrary() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-border bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Entity</th>
@@ -416,6 +399,7 @@ export default function TestCasesLibrary() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

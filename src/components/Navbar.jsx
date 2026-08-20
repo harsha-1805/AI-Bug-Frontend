@@ -24,7 +24,7 @@ const TITLES = {
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const title = TITLES[location.pathname] || "BugPilot AI";
+  const title = TITLES[location.pathname] || "Project Tracker";
   const { mobileOpen, collapsed, isMobile, toggleSidebar } = useSidebar();
   const menuIsOpen = isMobile ? mobileOpen : !collapsed;
   const { isDark, toggleTheme } = useTheme();

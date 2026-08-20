@@ -103,10 +103,14 @@ export default function Reports() {
           filter (see components/Navbar.jsx); date range and export
           type stay local to this page. */}
       <div className="card mb-6 flex flex-wrap items-end gap-3 p-4">
-        <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input label="To" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <div className="w-full sm:w-44">
+          <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </div>
+        <div className="w-full sm:w-44">
+          <Input label="To" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
 
-        <div className="ml-auto flex items-end gap-2">
+        <div className="flex w-full items-end gap-2 sm:ml-auto sm:w-auto">
           <div className="w-40">
             <label className="label">Export as CSV</label>
             <Select

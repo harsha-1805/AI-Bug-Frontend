@@ -92,7 +92,7 @@ export default function Sidebar() {
               <Bot size={18} />
             </div>
             {showLabels && (
-              <span className="truncate text-base font-semibold text-slate-800">BugPilot AI</span>
+              <span className="truncate text-base font-semibold text-slate-800">Project Tracker</span>
             )}
           </div>
           {/* Close button — mobile drawer only */}

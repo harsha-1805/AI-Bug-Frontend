@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, Eye, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet, UserRound } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet, UserRound } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -360,14 +360,6 @@ export default function Bugs() {
             </p>
             <p className="mt-0.5 text-xs text-slate-400">{projectName(row.project_id)}</p>
           </button>
-          <button
-            type="button"
-            onClick={() => setPreviewBug(row)}
-            title="Preview"
-            className="ml-auto shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-primary-600"
-          >
-            <Eye size={15} />
-          </button>
         </div>
       ),
     },
@@ -430,10 +422,11 @@ export default function Bugs() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
         <Dropdown
           label={<MoreVertical size={16} />}
+          showChevron={false}
           items={[
             { label: "Edit bug", icon: Pencil, onClick: () => openEdit(row) },
             { label: "Assign", icon: UserPlus, onClick: () => openAssign(row) },
@@ -474,6 +467,7 @@ export default function Bugs() {
           onChange={setStatusFilter}
           placeholder="All statuses"
           ariaLabel="Filter by status"
+          clearable
           options={STATUSES.map((s) => ({ value: s, label: s }))}
         />
         <Select
@@ -482,6 +476,7 @@ export default function Bugs() {
           onChange={setSeverityFilter}
           placeholder="All severities"
           ariaLabel="Filter by severity"
+          clearable
           options={SEVERITIES.map((s) => ({ value: s, label: s }))}
         />
         <button
@@ -489,13 +484,13 @@ export default function Bugs() {
           onClick={() => setAssignedToMe((v) => !v)}
           aria-pressed={assignedToMe}
           title="Show only bugs assigned to me"
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-colors ${
             assignedToMe
               ? "border-primary-200 bg-primary-50 text-primary-700"
               : "border-border bg-white text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <UserRound size={14} /> Assigned to me
+          <UserRound size={15} /> Assigned to me
         </button>
         <span className="text-sm text-slate-400">
           {bugs.length} of {total} bug{total === 1 ? "" : "s"}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 
 /**
  * Custom Tailwind dropdown/select control.
@@ -28,6 +28,11 @@ export default function Select({
   className = "",
   ariaLabel,
   id,
+  // When true, shows a small "×" clear button once a value is selected,
+  // letting the user get back to the placeholder ("All statuses" etc.)
+  // without it — previously there was no way back to that state once a
+  // specific option was picked.
+  clearable = false,
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
@@ -199,6 +204,7 @@ export default function Select({
   // sitting side by side.
   const hasWidthOverride = /(^|\s)w-/.test(className);
   const widthClass = hasWidthOverride ? className : `w-full ${className}`;
+  const showClear = clearable && !disabled && Boolean(selectedOption);
 
   return (
     <div className={`relative inline-block ${widthClass}`}>
@@ -216,16 +222,33 @@ export default function Select({
         aria-label={ariaLabel}
         className={`input flex w-full items-center justify-between gap-2 text-left ${
           disabled ? "cursor-not-allowed bg-slate-50 text-slate-400" : "cursor-pointer"
-        }`}
+        } ${showClear ? "pr-8" : ""}`}
       >
         <span className={`truncate ${selectedOption ? "text-slate-800" : "text-slate-400"}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown
-          size={15}
-          className={`shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        {!showClear && (
+          <ChevronDown
+            size={15}
+            className={`shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        )}
       </button>
+      {showClear && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(false);
+            onChange?.("");
+          }}
+          aria-label={`Clear ${ariaLabel || "selection"}`}
+          title="Clear"
+          className="absolute right-7 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        >
+          <X size={13} />
+        </button>
+      )}
       {menu}
     </div>
   );

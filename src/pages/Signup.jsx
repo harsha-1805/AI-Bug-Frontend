@@ -31,7 +31,7 @@ export default function Signup() {
   };
 
   return (
-    <AuthLayout title="Create your account" subtitle="Start managing bugs smarter with BugPilot AI">
+    <AuthLayout title="Create your account" subtitle="Start managing bugs smarter with Project Tracker">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
           label="Full name"
