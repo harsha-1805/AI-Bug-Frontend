@@ -840,8 +840,8 @@ export default function Dashboard() {
                 <LineChart
                   data={bug_trend}
                   margin={{
-                    left: -20,
-                    right: 5,
+                    left: 0,
+                    right: 10,
                   }}
                 >
                   <CartesianGrid
@@ -860,12 +860,7 @@ export default function Dashboard() {
                     tickFormatter={(d) =>
                       d.slice(5)
                     }
-                    interval={Math.max(
-                      0,
-                      Math.floor(
-                        bug_trend.length / 6
-                      )
-                    )}
+                    interval="preserveStartEnd"
                   />
  
                   <YAxis

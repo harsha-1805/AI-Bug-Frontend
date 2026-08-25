@@ -18,6 +18,7 @@ import Avatar from "../components/Avatar.jsx";
 import DueDateBadge from "../components/DueDateBadge.jsx";
 import Loader from "../components/Loader.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import CommentThread from "../components/CommentThread.jsx";
 
 import { taskService } from "../services/taskService";
 import { projectService } from "../services/projectService";
@@ -645,6 +646,13 @@ export default function  TaskPreviewPage() {
                   </section>
                 </>
               )}
+
+              {/* =================================================
+                  COMMENTS
+              ================================================== */}
+              <section className="mt-6 rounded-2xl border border-border p-4 sm:p-5">
+                <CommentThread entityType="Task" entityId={task.id} />
+              </section>
             </div>
           </div>
         )}

@@ -139,6 +139,14 @@ export const bugService = {
     return data;
   },
 
+  // Moves a Resolved (or legacy Closed) bug back to "In Progress" and
+  // reassigns it to whoever was working on it before it was resolved —
+  // see bug_service.reopen_bug on the backend.
+  async reopenBug(bugId) {
+    const { data } = await axiosInstance.patch(`${BUGS_BASE}/${bugId}/reopen`);
+    return data;
+  },
+
   async deleteBug(bugId) {
     const { data } = await axiosInstance.delete(`${BUGS_BASE}/${bugId}`);
     return data;

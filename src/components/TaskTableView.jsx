@@ -42,6 +42,12 @@ export default function TaskTableView({
   onGenerateTestCases,
   onPreviewSubtask,
   onGenerateTestCasesForSubtask,
+  canEdit = true,
+  canDelete = true,
+  canGenerateTestCases = true,
+  canCreateSubtask = true,
+  canEditSubtask = true,
+  canDeleteSubtask = true,
 }) {
   const [subtasksByTask, setSubtasksByTask] = useState({});
   const [loadingTaskId, setLoadingTaskId] = useState(null);
@@ -156,15 +162,18 @@ export default function TaskTableView({
       key: "status",
       header: "Status",
       width: 160,
-      render: (task) => (
-        <Select
-          value={task.status}
-          onChange={(v) => onChangeStatus(task, v)}
-          ariaLabel={`Status for ${task.title}`}
-          options={STATUS_OPTIONS}
-          className="w-auto min-w-[9rem]"
-        />
-      ),
+      render: (task) =>
+        canEdit ? (
+          <Select
+            value={task.status}
+            onChange={(v) => onChangeStatus(task, v)}
+            ariaLabel={`Status for ${task.title}`}
+            options={STATUS_OPTIONS}
+            className="w-auto min-w-[9rem]"
+          />
+        ) : (
+          <Badge tone="neutral">{task.status}</Badge>
+        ),
     },
     {
       key: "due_date",
@@ -190,18 +199,34 @@ export default function TaskTableView({
       key: "actions",
       header: "Actions",
       width: 56,
-      render: (task) => (
-        <Dropdown
-          label={<MoreVertical size={16} />}
-          showChevron={false}
-          items={[
-            ...(onPreview ? [{ label: "Preview", icon: Eye, onClick: () => onPreview(task) }] : []),
-            { label: "Edit", icon: Pencil, onClick: () => onEdit(task) },
-            { label: "Generate test cases", icon: Sparkles, onClick: () => onGenerateTestCases?.(task) },
-            { label: "Delete", icon: Trash2, onClick: () => onDelete(task) },
-          ]}
-        />
-      ),
+      render: (task) => {
+        const items = [
+          ...(onPreview ? [{ label: "Preview", icon: Eye, onClick: () => onPreview(task) }] : []),
+          {
+            label: "Edit",
+            icon: Pencil,
+            onClick: () => onEdit(task),
+            disabled: !canEdit,
+            disabledReason: "You don't have permission to edit tasks",
+          },
+          {
+            label: "Generate test cases",
+            icon: Sparkles,
+            onClick: () => onGenerateTestCases?.(task),
+            disabled: !canGenerateTestCases,
+            disabledReason: "You don't have permission to generate test cases",
+          },
+          {
+            label: "Delete",
+            icon: Trash2,
+            danger: true,
+            onClick: () => onDelete(task),
+            disabled: !canDelete,
+            disabledReason: "You don't have permission to delete tasks",
+          },
+        ];
+        return <Dropdown label={<MoreVertical size={16} />} showChevron={false} items={items} />;
+      },
     },
   ];
 
@@ -218,23 +243,25 @@ export default function TaskTableView({
 
     return (
       <div className="space-y-2">
-        <div className="flex gap-2">
-          <Input
-            value={newTitleByTask[task.id] || ""}
-            maxLength={100}
-            onChange={(e) => setNewTitleByTask((cur) => ({ ...cur, [task.id]: e.target.value }))}
-            placeholder="Add a subtask..."
-            className="flex-1"
-          />
-          <Button
-            type="button"
-            icon={Plus}
-            loading={addingTaskId === task.id}
-            onClick={() => addSubtask(task)}
-          >
-            Add
-          </Button>
-        </div>
+        {canCreateSubtask && (
+          <div className="flex gap-2">
+            <Input
+              value={newTitleByTask[task.id] || ""}
+              maxLength={100}
+              onChange={(e) => setNewTitleByTask((cur) => ({ ...cur, [task.id]: e.target.value }))}
+              placeholder="Add a subtask..."
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              icon={Plus}
+              loading={addingTaskId === task.id}
+              onClick={() => addSubtask(task)}
+            >
+              Add
+            </Button>
+          </div>
+        )}
 
         {subs.length === 0 ? (
           <p className="py-2 text-center text-xs text-slate-400">No subtasks yet.</p>
@@ -267,13 +294,17 @@ export default function TaskTableView({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Select
-                    value={st.status}
-                    onChange={(v) => changeSubtaskStatus(task, st, v)}
-                    ariaLabel={`Status for ${st.title}`}
-                    options={STATUS_OPTIONS}
-                    className="w-auto min-w-[8.5rem]"
-                  />
+                  {canEditSubtask ? (
+                    <Select
+                      value={st.status}
+                      onChange={(v) => changeSubtaskStatus(task, st, v)}
+                      ariaLabel={`Status for ${st.title}`}
+                      options={STATUS_OPTIONS}
+                      className="w-auto min-w-[8.5rem]"
+                    />
+                  ) : (
+                    <Badge tone="neutral">{st.status}</Badge>
+                  )}
                   {/* {onPreviewSubtask && (
                     <button
                       type="button"
@@ -284,7 +315,7 @@ export default function TaskTableView({
                       <Eye size={14} />
                     </button>
                   )} */}
-                  {onGenerateTestCasesForSubtask && (
+                  {onGenerateTestCasesForSubtask && canGenerateTestCases && (
                     <button
                       type="button"
                       onClick={() => onGenerateTestCasesForSubtask(st)}
@@ -294,14 +325,16 @@ export default function TaskTableView({
                       <Sparkles size={14} />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => deleteSubtask(task, st)}
-                    className="rounded p-1 text-slate-400 hover:text-red-600"
-                    title="Delete subtask"
-                  >
-                    <X size={14} />
-                  </button>
+                  {canDeleteSubtask && (
+                    <button
+                      type="button"
+                      onClick={() => deleteSubtask(task, st)}
+                      className="rounded p-1 text-slate-400 hover:text-red-600"
+                      title="Delete subtask"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

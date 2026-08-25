@@ -18,6 +18,8 @@ import Button from "../components/Button.jsx";
 import Loader from "../components/Loader.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { reportsService } from "../services/reportsService";
+import { sprintService } from "../services/sprintService";
+import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { isDateRangeValid } from "../utils/validation.js";
@@ -44,6 +46,15 @@ export default function Reports() {
 
   const [exportType, setExportType] = useState("bugs");
   const [exporting, setExporting] = useState(false);
+
+  // Sprint <-> Task cascading filter, scoped to bugs/tasks exports only
+  // (the audit log has no sprint/task of its own). Picking a sprint
+  // narrows the task list to that sprint; picking a task the other way
+  // auto-fills which sprint it belongs to — either order works.
+  const [sprintFilter, setSprintFilter] = useState("");
+  const [taskFilter, setTaskFilter] = useState("");
+  const [reportSprints, setReportSprints] = useState([]);
+  const [reportTasks, setReportTasks] = useState([]);
 
   const loadReports = useCallback(async () => {
     if (!isDateRangeValid(dateFrom, dateTo)) {
@@ -74,6 +85,46 @@ export default function Reports() {
     loadReports();
   }, [loadReports]);
 
+  // Sprint options for the export filter — scoped to the active project.
+  // No project selected ("All Projects") means no sprint list to scope
+  // to, so the filter stays empty/disabled until one is picked.
+  useEffect(() => {
+    setSprintFilter("");
+    setTaskFilter("");
+    if (!projectId) {
+      setReportSprints([]);
+      return;
+    }
+    sprintService
+      .listSprints({ projectId: Number(projectId) })
+      .then(setReportSprints)
+      .catch(() => setReportSprints([]));
+  }, [projectId]);
+
+  // Task options cascade from the sprint filter: narrows to that
+  // sprint's tasks once one is picked, otherwise shows every task in
+  // the project so a task can be picked first instead.
+  useEffect(() => {
+    if (!projectId) {
+      setReportTasks([]);
+      return;
+    }
+    taskService
+      .listTasks({ projectId: Number(projectId), sprintId: sprintFilter ? Number(sprintFilter) : undefined })
+      .then(setReportTasks)
+      .catch(() => setReportTasks([]));
+  }, [projectId, sprintFilter]);
+
+  // Picking a task directly (before a sprint is chosen) auto-fills
+  // which sprint it belongs to, so the two filters stay in sync
+  // whichever order they're set in.
+  const handleTaskFilterChange = (value) => {
+    setTaskFilter(value);
+    if (!value) return;
+    const task = reportTasks.find((t) => String(t.id) === String(value));
+    if (task?.sprint_id) setSprintFilter(String(task.sprint_id));
+  };
+
   const handleExport = async () => {
     if (!isDateRangeValid(dateFrom, dateTo)) {
       toast.error("'To' date can't be before 'From' date");
@@ -86,6 +137,8 @@ export default function Reports() {
         projectId: projectId ? Number(projectId) : undefined,
         dateFrom,
         dateTo,
+        sprintId: exportType !== "audit" && sprintFilter ? Number(sprintFilter) : undefined,
+        taskId: exportType !== "audit" && taskFilter ? Number(taskFilter) : undefined,
       });
       toast.success("Download started");
     } catch (err) {
@@ -110,9 +163,36 @@ export default function Reports() {
           <Input label="To" type="date" min={dateFrom || undefined} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
 
+        {exportType !== "audit" && (
+          <>
+            <div className="w-full sm:w-44">
+              <label className="label">Sprint</label>
+              <Select
+                value={sprintFilter}
+                disabled={!projectId}
+                onChange={(v) => setSprintFilter(v)}
+                placeholder={projectId ? "All sprints" : "Select a project first"}
+                ariaLabel="Sprint filter"
+                options={reportSprints.map((s) => ({ value: s.id, label: s.name }))}
+              />
+            </div>
+            <div className="w-full sm:w-44">
+              <label className="label">Task</label>
+              <Select
+                value={taskFilter}
+                disabled={!projectId}
+                onChange={handleTaskFilterChange}
+                placeholder={projectId ? "All tasks" : "Select a project first"}
+                ariaLabel="Task filter"
+                options={reportTasks.map((t) => ({ value: t.id, label: t.title }))}
+              />
+            </div>
+          </>
+        )}
+
         <div className="flex w-full items-end gap-2 sm:ml-auto sm:w-auto">
           <div className="w-40">
-            <label className="label">Export as CSV</label>
+            <label className="label">Export as Excel</label>
             <Select
               value={exportType}
               onChange={setExportType}

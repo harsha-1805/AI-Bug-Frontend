@@ -1,4 +1,5 @@
-import { Bell, Settings as SettingsIcon, LogOut, Menu, X, Moon, Sun, FolderKanban } from "lucide-react";
+import { Settings as SettingsIcon, LogOut, Menu, X, Moon, Sun, FolderKanban } from "lucide-react";
+import NotificationBell from "./NotificationBell.jsx";
 import { useLocation } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
 import Dropdown from "./Dropdown.jsx";
@@ -24,7 +25,7 @@ const TITLES = {
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const title = TITLES[location.pathname] || "Project Tracker";
+  const title = TITLES[location.pathname] || "BugPilot AI";
   const { mobileOpen, collapsed, isMobile, toggleSidebar } = useSidebar();
   const menuIsOpen = isMobile ? mobileOpen : !collapsed;
   const { isDark, toggleTheme } = useTheme();
@@ -66,10 +67,7 @@ export default function Navbar() {
           />
         </div>
 
-        <button className="relative shrink-0 rounded-xl p-2 text-slate-500 hover:bg-slate-50">
-          <Bell size={18} />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary-600" />
-        </button>
+        <NotificationBell />
 
         <Dropdown
           label={<Avatar name={user?.full_name || "User"} size={30} />}

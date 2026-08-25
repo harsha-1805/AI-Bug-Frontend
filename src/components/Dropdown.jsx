@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 
@@ -29,6 +29,12 @@ export default function Dropdown({
   ariaLabel = "Open menu",
   buttonClassName = "",
   menuWidth = 192,
+  // When true, renders the trigger as a visibly muted, unclickable
+  // button instead of a working menu — used when a role has zero
+  // permitted actions here, so the column reads as "nothing you're
+  // allowed to do" rather than an empty gap that looks broken.
+  disabled = false,
+  disabledReason = "You don't have permission for any actions here",
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -64,7 +70,7 @@ export default function Dropdown({
     setPosition({ top, left, width });
   }, [items.length, menuWidth]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return undefined;
 
     updatePosition();
@@ -113,12 +119,20 @@ export default function Dropdown({
                   key={item.label}
                   type="button"
                   role="menuitem"
+                  disabled={item.disabled}
+                  title={item.disabled ? item.disabledReason : undefined}
+                  aria-label={item.disabled ? item.disabledReason : undefined}
                   onClick={() => {
+                    if (item.disabled) return;
                     item.onClick?.();
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 ${
-                    item.danger ? "text-red-600 hover:bg-red-50" : "text-slate-600"
+                  className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors ${
+                    item.disabled
+                      ? "cursor-not-allowed text-slate-300 opacity-60"
+                      : item.danger
+                      ? "text-red-600 hover:bg-red-50"
+                      : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   {item.icon && <item.icon size={15} />}
@@ -133,21 +147,33 @@ export default function Dropdown({
 
   return (
     <div className="inline-flex">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        className={`flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${buttonClassName}`}
-      >
-        {label}
-        {showChevron && (
-          <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-        )}
-      </button>
-      {menu}
+      {disabled ? (
+        <button
+          type="button"
+          disabled
+          title={disabledReason}
+          aria-label={disabledReason}
+          className={`flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-sm text-slate-300 opacity-60 ${buttonClassName}`}
+        >
+          {label}
+        </button>
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={ariaLabel}
+          className={`flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${buttonClassName}`}
+        >
+          {label}
+          {showChevron && (
+            <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+          )}
+        </button>
+      )}
+      {!disabled && menu}
     </div>
   );
 }

@@ -34,7 +34,7 @@ export const reportsService = {
   // Downloads the CSV directly via axios (so the auth header is sent),
   // then triggers a browser save using a Blob + temporary <a> — a plain
   // <a href="/api/...download"> wouldn't carry the Authorization header.
-  async downloadExport({ type, projectId, dateFrom, dateTo, status, severity, entityType }) {
+  async downloadExport({ type, projectId, dateFrom, dateTo, status, severity, sprintId, taskId, entityType }) {
     const response = await axiosInstance.get(`${REPORTS_BASE}/export`, {
       params: {
         type,
@@ -43,16 +43,20 @@ export const reportsService = {
         date_to: dateTo || undefined,
         status: status || undefined,
         severity: severity || undefined,
+        sprint_id: sprintId || undefined,
+        task_id: taskId || undefined,
         entity_type: entityType || undefined,
       },
       responseType: "blob",
     });
 
-    const blob = new Blob([response.data], { type: "text/csv" });
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${type}_report.csv`;
+    link.download = `${type}_report.xlsx`;
     document.body.appendChild(link);
     link.click();
     link.remove();

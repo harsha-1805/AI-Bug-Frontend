@@ -13,10 +13,26 @@ export default function Button({
   loading = false,
   icon: Icon,
   className = "",
+  // When true, renders the button in a visibly muted, unclickable state
+  // with a tooltip explaining why — used for actions like "New Project"
+  // that a role isn't permitted to do. Keeps the button in its normal
+  // place in the layout (so the page doesn't visually shift/rearrange
+  // between roles) instead of just not rendering it at all, which reads
+  // as "broken" rather than "not allowed".
+  permissionLocked = false,
+  lockedReason = "You don't have permission to do this",
   ...props
 }) {
+  const isDisabled = loading || permissionLocked || props.disabled;
   return (
-    <button className={`${VARIANTS[variant]} ${className}`} disabled={loading || props.disabled} {...props}>
+    <button
+      {...props}
+      className={`${VARIANTS[variant]} ${permissionLocked ? "cursor-not-allowed opacity-50" : ""} ${className}`}
+      disabled={isDisabled}
+      title={permissionLocked ? lockedReason : props.title}
+      aria-label={permissionLocked ? lockedReason : props["aria-label"]}
+      onClick={permissionLocked ? undefined : props.onClick}
+    >
       {loading ? <Loader2 size={16} className="animate-spin" /> : Icon ? <Icon size={16} /> : null}
       {children}
     </button>

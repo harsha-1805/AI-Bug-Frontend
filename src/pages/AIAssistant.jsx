@@ -29,6 +29,7 @@ import { taskService } from "../services/taskService";
 import { bugService } from "../services/bugService";
 import { subtaskService } from "../services/subtaskService";
 import { useAuth } from "../hooks/useAuth";
+import { useAIChat } from "../hooks/useAIChat";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { getErrorMessage } from "../utils/apiError.js";
 import { downloadCsv } from "../utils/downloadCsv.js";
@@ -41,6 +42,8 @@ const SUGGESTION_CARDS = [
   { icon: Search, text: "Search bugs for login", hint: "Search bugs" },
   { icon: Rocket, text: "What's the sprint status?", hint: "Sprint analysis" },
   { icon: ListTree, text: "Which module is most unstable?", hint: "Module analysis" },
+  { icon: UserIcon, text: "Who are the open bugs assigned to?", hint: "Workload + deadlines" },
+  { icon: Wand2, text: "Explain bug #1 and suggest a fix", hint: "Fix suggestion" },
 ];
 
 // ── TestCaseMessage ──────────────────────────────────────────────────────────
@@ -241,7 +244,14 @@ function TestCaseMessage({ msg, projects, onRegenerate, onSave, regenerating }) 
 export default function AIAssistant() {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]);
+  // Shared with the floating AIAssistantWidget via AIChatContext — lifted
+  // out of local page state so this history survives navigating to
+  // another page and back. This page used to keep `messages` in its own
+  // useState([]), which reset every time because route pages fully
+  // unmount when you navigate away (standard React Router behavior) —
+  // there was nothing actually wrong with the chat logic itself, the
+  // history just had nowhere to live outside the component.
+  const { messages, setMessages } = useAIChat();
   const [sending, setSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -276,8 +286,19 @@ export default function AIAssistant() {
       .catch(() => {});
   }, []);
 
+  // Auto-scroll to the latest message — but not on the very first
+  // render. Chat history now persists across navigation (AIChatContext),
+  // so opening this page with existing history would otherwise jump
+  // straight to the bottom immediately, hiding the "AI Assistant"
+  // header/logo and suggestion cards every time you visit. Only scroll
+  // when messages/sending/regenerating actually change after mount.
+  const didMountRef = useRef(false);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [messages, sending, regenerating]);
 
   useEffect(() => {
@@ -497,7 +518,7 @@ export default function AIAssistant() {
             w-full
             flex-col
             items-center
-            justify-center
+            justify-start
             gap-4
             px-1
             py-6

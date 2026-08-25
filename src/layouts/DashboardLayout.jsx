@@ -5,6 +5,7 @@ import AIAssistantWidget from "../components/AIAssistantWidget.jsx";
 import { SidebarProvider } from "../context/SidebarContext.jsx";
 import { ThemeProvider } from "../context/ThemeContext.jsx";
 import { ProjectFilterProvider } from "../context/ProjectFilterContext.jsx";
+import { AIChatProvider } from "../context/AIChatContext.jsx";
 import { useSidebar } from "../hooks/useSidebar";
 
 function DashboardShell() {
@@ -31,9 +32,11 @@ export default function DashboardLayout() {
   return (
     <ThemeProvider>
       <ProjectFilterProvider>
-        <SidebarProvider>
-          <DashboardShell />
-        </SidebarProvider>
+        <AIChatProvider>
+          <SidebarProvider>
+            <DashboardShell />
+          </SidebarProvider>
+        </AIChatProvider>
       </ProjectFilterProvider>
     </ThemeProvider>
   );

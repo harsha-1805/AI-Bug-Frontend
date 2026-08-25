@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet, UserRound } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, UserPlus, UploadCloud, X, PanelRightClose, Sparkles, ExternalLink, FileSpreadsheet, UserRound, RotateCcw } from "lucide-react";
 import PageHeader from "../components/PageHeader.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import Button from "../components/Button.jsx";
@@ -15,16 +15,18 @@ import Select from "../components/Select.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
 import DueDateBadge from "../components/DueDateBadge.jsx";
+import CommentThread from "../components/CommentThread.jsx";
 import { bugService } from "../services/bugService";
 import { projectService } from "../services/projectService";
 import { sprintService } from "../services/sprintService";
+import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import {
   validateRequiredText,
-  validateOptionalText,
   TEXT_MAX_LENGTH,
   TEXTAREA_MAX_LENGTH,
 } from "../utils/validation.js";
+import { hasPermission } from "../utils/rbac.js";
 import { useAuth } from "../hooks/useAuth";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
@@ -32,13 +34,18 @@ import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHando
 
 const SEVERITY_TONE = { Critical: "critical", High: "high", Medium: "medium", Low: "low" };
 const STATUS_TONE = { Open: "info", "In Progress": "medium", Resolved: "success", Closed: "neutral" };
-const STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
+// "Closed" is intentionally not selectable anymore — Reopen (see the
+// dedicated action below) is now the only way back from "Resolved",
+// and there's no manual "Closed" button. Legacy bugs already sitting
+// at "Closed" still display correctly via STATUS_TONE above.
+const STATUSES = ["Open", "In Progress", "Resolved"];
 const SEVERITIES = ["Critical", "High", "Medium", "Low"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
 
 const emptyForm = {
   projectId: "",
   sprintId: "",
+  taskId: "",
   title: "",
   severity: "Medium",
   priority: "P2",
@@ -51,8 +58,16 @@ const emptyForm = {
 export default function Bugs() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const userRoleName = user?.role?.name || (user?.roles?.[0]?.name) || "";
-  const canDeleteBug = ["Admin", "Lead", "QA"].includes(userRoleName);
+  // Permission-driven action gating — mirrors the same permission codes
+  // the backend already enforces on each endpoint (require_permission(...)
+  // in bugs_router.py), so a role without a given permission simply
+  // doesn't see that action here; every other role's buttons render
+  // exactly as before.
+  const canCreateBug = hasPermission(user, "bugs.create");
+  const canEditBug = hasPermission(user, "bugs.edit");
+  const canAssignBug = hasPermission(user, "bugs.assign");
+  const canDeleteBug = hasPermission(user, "bugs.delete");
+  const canGenerateTestCases = hasPermission(user, "ai_assistant.use");
   const [loading, setLoading] = useState(true);
   const [bugs, setBugs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -63,6 +78,7 @@ export default function Bugs() {
   // project's team (or Admin/Lead), see app/services/project_access.py.
   const [formMembers, setFormMembers] = useState([]);
   const [formSprints, setFormSprints] = useState([]); // sprints for whichever project is selected in the form
+  const [formTasks, setFormTasks] = useState([]); // tasks for whichever sprint is selected in the form
 
   // Filters
   const [search, setSearch] = useState("");
@@ -161,6 +177,20 @@ export default function Bugs() {
       .catch(() => setFormMembers([]));
   }, [form.projectId]);
 
+  // Sprint is now mandatory on a bug, so the task picker cascades from
+  // it — pick a sprint first, then optionally a task within that sprint
+  // (mirrors the AI Bug Generator's task picker in BugReportForm.jsx).
+  useEffect(() => {
+    if (!form.sprintId) {
+      setFormTasks([]);
+      return;
+    }
+    taskService
+      .listTasks({ projectId: Number(form.projectId), sprintId: Number(form.sprintId) })
+      .then(setFormTasks)
+      .catch(() => setFormTasks([]));
+  }, [form.projectId, form.sprintId]);
+
   const openCreate = () => {
     setEditingBug(null);
     setForm({ ...emptyForm, projectId: projectFilter || "" });
@@ -172,6 +202,7 @@ export default function Bugs() {
     setForm({
       projectId: String(bug.project_id),
       sprintId: bug.sprint_id ? String(bug.sprint_id) : "",
+      taskId: bug.task_id ? String(bug.task_id) : "",
       title: bug.title,
       severity: bug.severity,
       priority: bug.priority,
@@ -208,12 +239,16 @@ export default function Bugs() {
       toast.error(titleError);
       return;
     }
-    const descriptionError = validateOptionalText(form.description, {
+    const descriptionError = validateRequiredText(form.description, {
       label: "Description",
       maxLength: TEXTAREA_MAX_LENGTH,
     });
     if (descriptionError) {
       toast.error(descriptionError);
+      return;
+    }
+    if (!form.sprintId) {
+      toast.error("Every bug needs a sprint — pick one");
       return;
     }
     setSaving(true);
@@ -223,9 +258,10 @@ export default function Bugs() {
         severity: form.severity,
         priority: form.priority,
         status: form.status,
-        sprintId: form.sprintId ? Number(form.sprintId) : undefined,
+        sprintId: Number(form.sprintId),
+        taskId: form.taskId ? Number(form.taskId) : undefined,
         assignedTo: form.assignedTo ? Number(form.assignedTo) : undefined,
-        description: form.description.trim() || undefined,
+        description: form.description.trim(),
         imageUrl: form.imageUrl || undefined,
       };
       if (editingBug) {
@@ -259,6 +295,25 @@ export default function Bugs() {
       load();
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to update status"));
+    }
+  };
+
+  // Reopen is the only way back from Resolved now — it goes through
+  // the dedicated /reopen endpoint rather than a generic status PATCH,
+  // because it also has to reassign the bug back to whoever was
+  // actually working on it (bug.previous_assignee), not just flip the
+  // status. See bug_service.reopen_bug on the backend.
+  const handleReopen = async (bug) => {
+    try {
+      const updated = await bugService.reopenBug(bug.id);
+      toast.success(
+        updated.assignee
+          ? `Reopened — reassigned to ${updated.assignee.full_name}`
+          : "Reopened"
+      );
+      load();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to reopen bug"));
     }
   };
 
@@ -423,22 +478,56 @@ export default function Bugs() {
     {
       key: "actions",
       header: "Actions",
-      render: (row) => (
-        <Dropdown
-          label={<MoreVertical size={16} />}
-          showChevron={false}
-          items={[
-            { label: "Edit bug", icon: Pencil, onClick: () => openEdit(row) },
-            { label: "Assign", icon: UserPlus, onClick: () => openAssign(row) },
-            { label: "Generate test cases", icon: Sparkles, onClick: () => handleGenerateTestCases(row) },
-            ...STATUSES.filter((s) => s !== row.status).map((s) => ({
-              label: `Mark as ${s}`,
-              onClick: () => changeStatus(row, s),
-            })),
-            ...(canDeleteBug ? [{ label: "Delete bug", icon: Trash2, onClick: () => setConfirmDelete(row) }] : []),
-          ]}
-        />
-      ),
+      render: (row) => {
+        const items = [
+          {
+            label: "Edit bug",
+            icon: Pencil,
+            onClick: () => openEdit(row),
+            disabled: !canEditBug,
+            disabledReason: "You don't have permission to edit bugs",
+          },
+          {
+            label: "Assign",
+            icon: UserPlus,
+            onClick: () => openAssign(row),
+            disabled: !canAssignBug,
+            disabledReason: "You don't have permission to assign bugs",
+          },
+          {
+            label: "Generate test cases",
+            icon: Sparkles,
+            onClick: () => handleGenerateTestCases(row),
+            disabled: !canGenerateTestCases,
+            disabledReason: "You don't have permission to generate test cases",
+          },
+          ...(row.status === "Resolved" || row.status === "Closed"
+            ? [
+                {
+                  label: "Reopen bug",
+                  icon: RotateCcw,
+                  onClick: () => handleReopen(row),
+                  disabled: !canEditBug,
+                  disabledReason: "You don't have permission to edit bugs",
+                },
+              ]
+            : STATUSES.filter((s) => s !== row.status).map((s) => ({
+                label: `Mark as ${s}`,
+                onClick: () => changeStatus(row, s),
+                disabled: !canEditBug,
+                disabledReason: "You don't have permission to edit bugs",
+              }))),
+          {
+            label: "Delete bug",
+            icon: Trash2,
+            danger: true,
+            onClick: () => setConfirmDelete(row),
+            disabled: !canDeleteBug,
+            disabledReason: "You don't have permission to delete bugs",
+          },
+        ];
+        return <Dropdown label={<MoreVertical size={16} />} showChevron={false} items={items} />;
+      },
     },
   ];
 
@@ -448,7 +537,12 @@ export default function Bugs() {
         title="Bugs"
         subtitle="Track, triage, and resolve issues across every project"
         actions={
-          <Button icon={Plus} onClick={openCreate}>
+          <Button
+            icon={Plus}
+            onClick={openCreate}
+            permissionLocked={!canCreateBug}
+            lockedReason="You don't have permission to create bugs"
+          >
             Create Bug
           </Button>
         }
@@ -529,6 +623,10 @@ export default function Bugs() {
             onViewScreenshot={() =>
               setPreviewImage({ url: resolveMediaUrl(previewBug.image_url), title: previewBug.title })
             }
+            canEdit={canEditBug}
+            canAssign={canAssignBug}
+            canDelete={canDeleteBug}
+            canGenerateTestCases={canGenerateTestCases}
           />
         )}
       </div>
@@ -652,16 +750,30 @@ export default function Bugs() {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="label">Sprint (optional)</label>
+              <label className="label">Sprint</label>
               <Select
                 value={form.sprintId}
                 disabled={!form.projectId}
-                onChange={(v) => setForm((f) => ({ ...f, sprintId: v }))}
-                placeholder="No sprint"
+                onChange={(v) => setForm((f) => ({ ...f, sprintId: v, taskId: "" }))}
+                placeholder={form.projectId ? "Select a sprint" : "Select a project first"}
                 ariaLabel="Sprint"
                 options={formSprints.map((s) => ({ value: s.id, label: s.name }))}
               />
+              <p className="mt-1 text-xs text-slate-400">Required — every bug must belong to a sprint.</p>
             </div>
+            <div>
+              <label className="label">Task (optional)</label>
+              <Select
+                value={form.taskId}
+                disabled={!form.sprintId}
+                onChange={(v) => setForm((f) => ({ ...f, taskId: v }))}
+                placeholder={form.sprintId ? "No task" : "Select a sprint first"}
+                ariaLabel="Task"
+                options={formTasks.map((t) => ({ value: t.id, label: t.title }))}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Assignee</label>
               <Select
@@ -762,7 +874,20 @@ export default function Bugs() {
  * wrapper above) instead of covering it, so the list stays visible while
  * reviewing a bug, similar to Jira's issue side-panel.
  */
-function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete, onViewScreenshot, onGenerateTestCases }) {
+function BugPreviewPanel({
+  bug,
+  projectName,
+  onClose,
+  onEdit,
+  onAssign,
+  onDelete,
+  onViewScreenshot,
+  onGenerateTestCases,
+  canEdit,
+  canAssign,
+  canDelete,
+  canGenerateTestCases,
+}) {
   // Open the bug detail in a dedicated full-screen tab so the user can
   // review the full bug without losing their place in the bugs list.
   const openInNewTab = () => {
@@ -872,27 +997,41 @@ function BugPreviewPanel({ bug, projectName, onClose, onEdit, onAssign, onDelete
         )}
 
         {/* AI test cases shortcut */}
-        <button
-          type="button"
-          onClick={onGenerateTestCases}
-          className="flex w-full items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/50 px-3 py-2.5 text-left text-xs font-medium text-primary-700 hover:bg-primary-50"
-        >
-          <FileSpreadsheet size={14} className="shrink-0" />
-          Generate AI test cases for this bug
-        </button>
+        {canGenerateTestCases && (
+          <button
+            type="button"
+            onClick={onGenerateTestCases}
+            className="flex w-full items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/50 px-3 py-2.5 text-left text-xs font-medium text-primary-700 hover:bg-primary-50"
+          >
+            <FileSpreadsheet size={14} className="shrink-0" />
+            Generate AI test cases for this bug
+          </button>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <CommentThread entityType="Bug" entityId={bug.id} />
+        </div>
       </div>
 
-      <div className="flex shrink-0 gap-2 border-t border-border px-4 py-3">
-        <Button variant="secondary" icon={Pencil} onClick={onEdit} className="flex-1">
-          Edit
-        </Button>
-        <Button variant="secondary" icon={UserPlus} onClick={onAssign} className="flex-1">
-          Assign
-        </Button>
-        <Button variant="danger" icon={Trash2} onClick={onDelete}>
-          <span className="sr-only">Delete</span>
-        </Button>
-      </div>
+      {(canEdit || canAssign || canDelete) && (
+        <div className="flex shrink-0 gap-2 border-t border-border px-4 py-3">
+          {canEdit && (
+            <Button variant="secondary" icon={Pencil} onClick={onEdit} className="flex-1">
+              Edit
+            </Button>
+          )}
+          {canAssign && (
+            <Button variant="secondary" icon={UserPlus} onClick={onAssign} className="flex-1">
+              Assign
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="danger" icon={Trash2} onClick={onDelete}>
+              <span className="sr-only">Delete</span>
+            </Button>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

@@ -7,6 +7,7 @@ import Badge from "../components/Badge.jsx";
 import Avatar from "../components/Avatar.jsx";
 import Loader from "../components/Loader.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import CommentThread from "../components/CommentThread.jsx";
 
 import { subtaskService } from "../services/subtaskService";
 import { taskService } from "../services/taskService";
@@ -496,6 +497,10 @@ export default function SubtaskPreviewPage() {
                       </div>
                     )}
                   </div>
+                </ContentSection>
+
+                <ContentSection title="Comments" accent="primary">
+                  <CommentThread entityType="SubTask" entityId={subtask.id} />
                 </ContentSection>
               </div>
             </div>

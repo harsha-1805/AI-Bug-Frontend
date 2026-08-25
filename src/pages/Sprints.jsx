@@ -18,6 +18,8 @@ import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useProjectFilter } from "../hooks/useProjectFilter";
+import { useAuth } from "../hooks/useAuth";
+import { hasPermission } from "../utils/rbac.js";
 import { validateRequiredText, TEXT_MAX_LENGTH } from "../utils/validation.js";
 
 const TASK_STATUS_TONE = { "To Do": "neutral", "In Progress": "medium", Done: "success" };
@@ -32,6 +34,14 @@ const emptyForm = { name: "", startDate: "", endDate: "", status: "Planned", pro
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function Sprints() {
+  const { user } = useAuth();
+  // Permission-driven action gating — mirrors the backend's
+  // require_permission(...) checks in sprints_router.py, so a role
+  // without a given permission simply doesn't see that action here;
+  // every other role's buttons render exactly as before.
+  const canCreateSprint = hasPermission(user, "sprints.create");
+  const canEditSprint = hasPermission(user, "sprints.edit");
+  const canDeleteSprint = hasPermission(user, "sprints.delete");
   const [projects, setProjects] = useState([]);
   // Universal project filter (Navbar dropdown) — "" = all projects. Shared
   // across Tasks/Sprints/Bugs/Dashboard/Reports/AI Assistant via context,
@@ -107,7 +117,11 @@ export default function Sprints() {
       toast.error(nameError);
       return;
     }
-    if (form.startDate && form.startDate < todayStr()) {
+    // Only a brand-new sprint's start date needs to be today-or-later.
+    // On edit, the sprint's existing start date is often already in the
+    // past (that's normal — it's already underway) and that shouldn't
+    // block saving unrelated changes like extending the end date.
+    if (!editingSprint && form.startDate && form.startDate < todayStr()) {
       toast.error("Start date can't be in the past");
       return;
     }
@@ -211,16 +225,26 @@ export default function Sprints() {
     {
       key: "actions",
       header: "Actions",
-      render: (row) => (
-        <Dropdown
-          label={<MoreVertical size={16} />}
-           showChevron={false}
-          items={[
-            { label: "Edit sprint", icon: Pencil, onClick: () => openEdit(row) },
-            { label: "Delete sprint", icon: Trash2, onClick: () => setConfirmDelete(row) },
-          ]}
-        />
-      ),
+      render: (row) => {
+        const items = [
+          {
+            label: "Edit sprint",
+            icon: Pencil,
+            onClick: () => openEdit(row),
+            disabled: !canEditSprint,
+            disabledReason: "You don't have permission to edit sprints",
+          },
+          {
+            label: "Delete sprint",
+            icon: Trash2,
+            danger: true,
+            onClick: () => setConfirmDelete(row),
+            disabled: !canDeleteSprint,
+            disabledReason: "You don't have permission to delete sprints",
+          },
+        ];
+        return <Dropdown label={<MoreVertical size={16} />} showChevron={false} items={items} />;
+      },
     },
   ];
 
@@ -265,7 +289,12 @@ export default function Sprints() {
         title="Sprints"
         subtitle="Plan, run, and review sprint cycles"
         actions={
-          <Button icon={Plus} onClick={openCreate}>
+          <Button
+            icon={Plus}
+            onClick={openCreate}
+            permissionLocked={!canCreateSprint}
+            lockedReason="You don't have permission to create sprints"
+          >
             New Sprint
           </Button>
         }
@@ -291,7 +320,12 @@ export default function Sprints() {
           title="No sprints yet"
           description="Create your first sprint to start scoping bugs and tasks by time-box."
           action={
-            <Button icon={Plus} onClick={openCreate}>
+            <Button
+              icon={Plus}
+              onClick={openCreate}
+              permissionLocked={!canCreateSprint}
+              lockedReason="You don't have permission to create sprints"
+            >
               New Sprint
             </Button>
           }
@@ -345,7 +379,7 @@ export default function Sprints() {
             <Input
               label="Start date"
               type="date"
-              min={todayStr()}
+              min={editingSprint ? undefined : todayStr()}
               value={form.startDate}
               onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
             />

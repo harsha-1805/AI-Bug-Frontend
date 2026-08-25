@@ -90,7 +90,7 @@ export default function EvidenceUploader({
       <div className="space-y-4">
         <div>
           <label className="label flex items-center gap-1.5">
-            <MessageSquare size={14} /> User Description <span className="font-normal text-slate-400">(optional)</span>
+            <MessageSquare size={14} /> User Description <span className="font-normal text-slate-400">(*)</span>
           </label>
           <Textarea
             className="resize-y"

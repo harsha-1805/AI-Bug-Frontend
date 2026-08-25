@@ -37,3 +37,30 @@ export function canViewAuditLog(user) {
   const roleNames = (user?.roles?.length ? user.roles : [user?.role]).filter(Boolean).map((r) => r.name);
   return roleNames.some((name) => ROLES_WITH_AUDIT_LOG_ACCESS.includes(name));
 }
+
+// ---------------------------------------------------------------------------
+// Fine-grained, per-button permission check.
+//
+// `UserOut` (app/schemas/__init__.py) now sends a flattened `permissions`
+// array on the logged-in user — every permission code granted by any role
+// they hold (e.g. "bugs.delete", "tasks.edit"), computed server-side from
+// the same role_service.ROLE_PERMISSIONS table the backend already
+// enforces with `require_permission(...)` on every route. This is just
+// that same data, read on the client so a button/menu item can be
+// disabled or hidden for a role that doesn't have it — without touching
+// how it looks for any other role.
+//
+// This does NOT replace backend enforcement — it only controls what
+// renders. The API call itself is still protected server-side regardless
+// of what this returns.
+export function hasPermission(user, permissionCode) {
+  if (!user || !permissionCode) return false;
+  return Array.isArray(user.permissions) && user.permissions.includes(permissionCode);
+}
+
+// Convenience for checking several at once — true if the user holds ANY
+// of the given codes (e.g. gate a menu item that multiple roles can reach
+// via different permissions).
+export function hasAnyPermission(user, ...permissionCodes) {
+  return permissionCodes.some((code) => hasPermission(user, code));
+}

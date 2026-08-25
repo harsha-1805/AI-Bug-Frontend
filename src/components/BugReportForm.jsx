@@ -1,8 +1,7 @@
-import { CheckCircle2, Layers, Plus, Save, X } from "lucide-react";
+import { CheckCircle2, Plus, Save, X } from "lucide-react";
 import Input from "./Input.jsx";
 import Textarea from "./Textarea.jsx";
 import Button from "./Button.jsx";
-import Badge from "./Badge.jsx";
 import Select from "./Select.jsx";
 import { isBlank, TEXT_MAX_LENGTH, TEXTAREA_MAX_LENGTH } from "../utils/validation.js";
 
@@ -73,12 +72,15 @@ export default function BugReportForm({
   bugReport,
   onChange,
   projects = [],
+  sprints = [],
   tasks = [],
   subtasks = [],
   selectedProjectId = "",
+  selectedSprintId = "",
   selectedTaskId = "",
   selectedSubtaskId = "",
   onProjectChange,
+  onSprintChange,
   onTaskChange,
   onSubtaskChange,
   onSave,
@@ -89,9 +91,9 @@ export default function BugReportForm({
 
   const update = (field, value) => onChange({ ...bugReport, [field]: value });
 
-  const selectedTask = tasks.find((t) => String(t.id) === String(selectedTaskId));
   const titleInvalid = isBlank(bugReport.title) || bugReport.title.trim().length > TEXT_MAX_LENGTH;
-  const canSave = Boolean(selectedProjectId) && !saving && !titleInvalid;
+  const descriptionInvalid = isBlank(bugReport.description);
+  const canSave = Boolean(selectedProjectId) && Boolean(selectedSprintId) && !saving && !titleInvalid && !descriptionInvalid;
 
   return (
     <div className="card space-y-5 p-5">
@@ -115,6 +117,7 @@ export default function BugReportForm({
         value={bugReport.description}
         maxLength={TEXTAREA_MAX_LENGTH}
         className="min-h-[100px]"
+        error={isBlank(bugReport.description) ? "Description is required" : undefined}
         onChange={(e) => update("description", e.target.value)}
       />
 
@@ -196,17 +199,26 @@ export default function BugReportForm({
             />
           </Field>
 
+          <Field label="Sprint">
+            <Select
+              value={selectedSprintId}
+              onChange={(v) => onSprintChange?.(v)}
+              disabled={!selectedProjectId}
+              ariaLabel="Sprint"
+              placeholder={selectedProjectId ? "Select a sprint" : "Select a project first"}
+              options={sprints.map((s) => ({ value: s.id, label: s.name }))}
+            />
+            <p className="mt-1 text-xs text-slate-400">Required — every bug must belong to a sprint.</p>
+          </Field>
+
           <Field label="Assign to task (optional)">
             <Select
               value={selectedTaskId}
               onChange={(v) => onTaskChange?.(v)}
-              disabled={!selectedProjectId}
+              disabled={!selectedSprintId}
               ariaLabel="Assign to task"
-              placeholder={selectedProjectId ? "No task — save unassigned" : "Select a project first"}
-              options={tasks.map((t) => ({
-                value: t.id,
-                label: `${t.title}${t.sprint ? ` (Sprint: ${t.sprint.name})` : ""}`,
-              }))}
+              placeholder={selectedSprintId ? "No task — save unassigned" : "Select a sprint first"}
+              options={tasks.map((t) => ({ value: t.id, label: t.title }))}
             />
           </Field>
 
@@ -228,21 +240,6 @@ export default function BugReportForm({
           </Field>
         </div>
 
-        {selectedTask?.sprint && (
-          <div className="flex items-center gap-2 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-700">
-            <Layers size={15} />
-            <span>
-              This task is in sprint <strong>{selectedTask.sprint.name}</strong>
-              {" — "}
-              <Badge tone="info">{selectedTask.sprint.status}</Badge>
-              {" "}The bug will inherit this sprint automatically.
-            </span>
-          </div>
-        )}
-        {selectedTask && !selectedTask.sprint && (
-          <p className="text-xs text-slate-400">This task isn&apos;t part of any sprint yet.</p>
-        )}
-
         <div className="flex flex-wrap items-center justify-end gap-2">
           {saved && (
             <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
@@ -255,7 +252,13 @@ export default function BugReportForm({
             icon={Save}
             loading={saving}
             disabled={!canSave}
-            title={!selectedProjectId ? "Select a project to save this bug" : undefined}
+            title={
+              !selectedProjectId
+                ? "Select a project to save this bug"
+                : !selectedSprintId
+                ? "Select a sprint to save this bug"
+                : undefined
+            }
             onClick={() => onSave?.()}
           >
             Save Bug

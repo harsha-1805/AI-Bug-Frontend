@@ -35,6 +35,7 @@ import { sprintService } from "../services/sprintService";
 import { subtaskService } from "../services/subtaskService";
 import { getErrorMessage } from "../utils/apiError.js";
 import { useAuth } from "../hooks/useAuth";
+import { hasPermission } from "../utils/rbac.js";
 import { useProjectFilter } from "../hooks/useProjectFilter";
 import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
@@ -76,10 +77,14 @@ const emptyForm = {
 export default function Tasks() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const userRoleName = user?.role?.name || (user?.roles?.[0]?.name) || "";
-  const canDeleteTask = ["Admin", "Lead", "QA"].includes(userRoleName);
-  const canCreateTask = ["Admin", "Lead", "QA"].includes(userRoleName);
-  const canAssignTask = ["Admin", "Lead", "QA"].includes(userRoleName);
+  // Permission-driven action gating — mirrors the backend's
+  // require_permission(...) checks in tasks_router.py, so a role
+  // without a given permission simply doesn't see that action here;
+  // every other role's buttons render exactly as before.
+  const canCreateTask = hasPermission(user, "tasks.create");
+  const canEditTask = hasPermission(user, "tasks.edit");
+  const canDeleteTask = hasPermission(user, "tasks.delete");
+  const canGenerateTestCases = hasPermission(user, "ai_assistant.use");
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -473,14 +478,21 @@ export default function Tasks() {
         subtitle="A kanban view of everything your team is working on — drag a card to change its status"
         actions={
           <div className="flex items-center gap-2">
+            {canGenerateTestCases && (
+              <Button
+                variant="secondary"
+                icon={FileSpreadsheet}
+                onClick={() => navigate("/test-cases-library")}
+              >
+                AI Test Cases
+              </Button>
+            )}
             <Button
-              variant="secondary"
-              icon={FileSpreadsheet}
-              onClick={() => navigate("/test-cases-library")}
+              icon={Plus}
+              onClick={openCreate}
+              permissionLocked={!canCreateTask}
+              lockedReason="You don't have permission to create tasks"
             >
-              AI Test Cases
-            </Button>
-            <Button icon={Plus} onClick={openCreate}>
               New Task
             </Button>
           </div>
@@ -547,6 +559,12 @@ export default function Tasks() {
           onGenerateTestCases={handleGenerateTestCases}
           onPreviewSubtask={(subtask) => navigate(`/subtasks/${subtask.id}/preview`)}
           onGenerateTestCasesForSubtask={handleGenerateTestCasesForSubtask}
+          canEdit={canEditTask}
+          canDelete={canDeleteTask}
+          canGenerateTestCases={canGenerateTestCases}
+          canCreateSubtask={hasPermission(user, "subtasks.create")}
+          canEditSubtask={hasPermission(user, "subtasks.edit")}
+          canDeleteSubtask={hasPermission(user, "subtasks.delete")}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -627,17 +645,34 @@ export default function Tasks() {
                               showChevron={false}
                               items={[
                                 { label: "Preview", icon: Eye, onClick: () => navigate(`/tasks/${task.id}/preview`) },
-                                { label: "Edit", icon: Pencil, onClick: () => openEdit(task) },
-                                { label: "Generate test cases", icon: Sparkles, onClick: () => handleGenerateTestCases(task) },
+                                {
+                                  label: "Edit",
+                                  icon: Pencil,
+                                  onClick: () => openEdit(task),
+                                  disabled: !canEditTask,
+                                  disabledReason: "You don't have permission to edit tasks",
+                                },
+                                {
+                                  label: "Generate test cases",
+                                  icon: Sparkles,
+                                  onClick: () => handleGenerateTestCases(task),
+                                  disabled: !canGenerateTestCases,
+                                  disabledReason: "You don't have permission to generate test cases",
+                                },
                                 ...COLUMNS.filter((c) => c.key !== task.status).map((c) => ({
                                   label: `Move to ${c.label}`,
                                   onClick: () => changeStatus(task, c.key),
+                                  disabled: !canEditTask,
+                                  disabledReason: "You don't have permission to edit tasks",
                                 })),
-                                ...(canDeleteTask ? [{
+                                {
                                   label: "Delete",
                                   icon: Trash2,
+                                  danger: true,
                                   onClick: () => setConfirmDelete(task),
-                                }] : []),
+                                  disabled: !canDeleteTask,
+                                  disabledReason: "You don't have permission to delete tasks",
+                                },
                               ]}
                             />
                           </div>
@@ -814,7 +849,7 @@ export default function Tasks() {
             <Input
               label="Due date"
               type="date"
-              min={todayStr()}
+              min={editingTask ? undefined : todayStr()}
               value={form.dueDate}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
             />

@@ -4,6 +4,8 @@ import toast from "react-hot-toast";
 import { Sparkles, X, Send } from "lucide-react";
 import { aiAssistantService } from "../services/aiAssistantService";
 import { useAuth } from "../hooks/useAuth";
+import { useAIChat } from "../hooks/useAIChat";
+import { useProjectFilter } from "../hooks/useProjectFilter";
 import { getErrorMessage } from "../utils/apiError.js";
 
 /**
@@ -33,10 +35,20 @@ export default function AIAssistantWidget() {
   const { user } = useAuth();
   const location = useLocation();
   const ctx = contextFor(location.pathname);
+  // Shared with the full /ai-assistant page via AIChatContext — see that
+  // file for why (previously this widget had its own local `messages`
+  // state, separate from the full page's, which is how the two ended up
+  // with different histories in the first place).
+  const { messages, addMessage } = useAIChat();
+  // Same project scope the rest of the app is currently filtered to
+  // (Navbar's project picker) — previously this widget never sent
+  // project_id at all, so it always answered across every project the
+  // user can access rather than the one currently in view, which is why
+  // its numbers could disagree with what's on screen.
+  const { selectedProjectId: projectId } = useProjectFilter();
 
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
 
@@ -56,15 +68,19 @@ export default function AIAssistantWidget() {
     const trimmed = (text ?? message).trim();
     if (!trimmed || sending) return;
 
-    setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
+    addMessage({ role: "user", text: trimmed });
     setMessage("");
     setSending(true);
     try {
-      const result = await aiAssistantService.query({ message: trimmed, module: ctx.module });
-      setMessages((prev) => [...prev, { role: "assistant", text: result.answer }]);
+      const result = await aiAssistantService.query({
+        message: trimmed,
+        module: ctx.module,
+        projectId: projectId ? Number(projectId) : undefined,
+      });
+      addMessage({ role: "assistant", text: result.answer });
     } catch (err) {
       const errMsg = getErrorMessage(err, "Sorry, I couldn't process that.");
-      setMessages((prev) => [...prev, { role: "assistant", text: errMsg }]);
+      addMessage({ role: "assistant", text: errMsg });
       toast.error(errMsg);
     } finally {
       setSending(false);
