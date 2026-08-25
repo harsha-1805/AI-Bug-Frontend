@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -33,12 +34,19 @@ import { resolveMediaUrl } from "../api/axiosInstance.js";
 import { AI_ENTITY_DRAG_MIME, setPendingTestCaseRequest } from "../utils/aiHandoff.js";
 
 const SEVERITY_TONE = { Critical: "critical", High: "high", Medium: "medium", Low: "low" };
-const STATUS_TONE = { Open: "info", "In Progress": "medium", Resolved: "success", Closed: "neutral" };
+const STATUS_TONE = {
+  Open: "info",
+  "In Progress": "medium",
+  QA: "high",
+  UAT: "low",
+  Resolved: "success",
+  Closed: "neutral",
+};
 // "Closed" is intentionally not selectable anymore — Reopen (see the
 // dedicated action below) is now the only way back from "Resolved",
 // and there's no manual "Closed" button. Legacy bugs already sitting
 // at "Closed" still display correctly via STATUS_TONE above.
-const STATUSES = ["Open", "In Progress", "Resolved"];
+const STATUSES = ["Open", "In Progress", "QA", "UAT", "Resolved"];
 const SEVERITIES = ["Critical", "High", "Medium", "Low"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
 

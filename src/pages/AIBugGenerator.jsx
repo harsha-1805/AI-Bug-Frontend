@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
@@ -178,8 +179,9 @@ export default function AIBugGenerator() {
         imageUrl: result.image_url,
       });
       setSaved(true);
+      const savedToTask = tasks.find((t) => String(t.id) === String(selectedTaskId));
       toast.success(
-        selectedTask ? `Bug saved and assigned to "${selectedTask.title}"` : "Bug saved."
+        savedToTask ? `Bug saved and assigned to "${savedToTask.title}"` : "Bug saved."
       );
       return saved_;
     } catch (err) {
