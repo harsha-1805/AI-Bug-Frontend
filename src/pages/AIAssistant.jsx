@@ -37,7 +37,7 @@ import { takePendingTestCaseRequest } from "../utils/aiHandoff.js";
 import { TEXTAREA_MAX_LENGTH } from "../utils/validation.js";
 
 const SUGGESTION_CARDS = [
-  { icon: Bug, text: "Show me the open bugs", hint: "Filter bugs" },
+  { icon: Bug, text: "Show me the open & in-progress bugs", hint: "Filter bugs" },
   { icon: LayoutGrid, text: "Summarize the bugs", hint: "Bug summary" },
   { icon: Search, text: "Search bugs for login", hint: "Search bugs" },
   { icon: Rocket, text: "What's the sprint status?", hint: "Sprint analysis" },

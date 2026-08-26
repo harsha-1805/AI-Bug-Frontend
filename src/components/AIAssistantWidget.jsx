@@ -19,7 +19,7 @@ const MODULE_CONTEXT = {
   "/dashboard": { module: "dashboard", label: "Dashboard", prompts: ["Summarize the bugs", "Which module has more bugs and who has them assigned to?"] },
   "/projects": { module: "projects", label: "Projects", prompts: ["Summarize the bugs", "Who created this project?"] },
   "/ai-bug-generator": { module: "ai-bug-generator", label: "AI Bug Generator", prompts: ["Summarize the bugs", "Find bugs similar to #1"] },
-  "/bugs": { module: "bugs", label: "Bugs", prompts: ["Show me the open bugs", "Who are the open bugs assigned to?", "Find bugs similar to #1"] },
+  "/bugs": { module: "bugs", label: "Bugs", prompts: ["Show me the open & in-progress bugs", "Who are the open bugs assigned to?", "Find bugs similar to #1"] },
   "/tasks": { module: "tasks", label: "Tasks", prompts: ["Task summary", "What are my tasks?"] },
   "/sprints": { module: "sprints", label: "Sprints", prompts: ["What's the sprint status?", "Who created the sprint?"] },
   "/reports": { module: "reports", label: "Reports", prompts: ["Give me a weekly digest", "Summarize the bugs"] },

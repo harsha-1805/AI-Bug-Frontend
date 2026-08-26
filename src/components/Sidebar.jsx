@@ -106,7 +106,7 @@ export default function Sidebar() {
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4 overscroll-contain">
           {visibleNavItems.map(({ to, label, icon: Icon, highlight }) => {
             const isAiAssistant = to === "/ai-assistant";
             return (
